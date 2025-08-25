@@ -7,4 +7,4 @@ This is a weekend project made within the span of a day (really a couple hours).
 This is a typescript reference implementation for borromean ring signatures (detailed [here](https://nt4tn.net/papers/borromean_draft_0.01_34241bb.pdf)).
 
 ## TODO
-- [ ] Implement verification
+- [x] Implement verification

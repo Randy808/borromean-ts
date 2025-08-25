@@ -17,7 +17,7 @@ export function generatePublicKeySignature(
   messageHash: bigint
 ): {
   signature: Uint8Array;
-  noncePoint: WeierstrassPoint<bigint>;
+  noncePoint: any;
 } {
   let sPartOfSig = randomBytes(32);
   const P = lift_x(Fn.fromBytes(xOnlyPubkey));
@@ -27,9 +27,8 @@ export function generatePublicKeySignature(
   let eP = P.multiply(messageHash);
   let R = sG.add(eP.negate());
 
-  let sig = new Uint8Array(64);
-  sig.set(toBytes(R.x), 0);
-  sig.set(sPartOfSig, 32);
+  let sig = new Uint8Array(32);
+  sig.set(sPartOfSig, 0);
 
   //sanity check
   let V1 = R.add(eP);
@@ -51,12 +50,12 @@ export function signPartOne(
   pubkeys: Uint8Array[]
 ) {
   let ringNonces: Uint8Array[] = [];
-  ringNonces.push(toBytes(signerNoncePoint.X));
+  ringNonces.push(toBytes(signerNoncePoint.x));
 
   let signerMessagePreimage = concatBytes(
     message,
-    toBytes(signerNoncePoint.X),
-    Fp.toBytes(BigInt(ringIndex)),
+    toBytes(signerNoncePoint.x),
+    new Uint8Array([ringIndex]),
     Fp.toBytes(BigInt(signerIndex))
   );
 
@@ -66,23 +65,25 @@ export function signPartOne(
   let currentMessageHash = signerGeneratedMessageHash;
 
   //For every index after the signer's
-  for (let i = signerIndex + 1; i < pubkeys.length; i++) {
+  for (let j = signerIndex + 1; j < pubkeys.length; j++) {
     let { signature, noncePoint } = generatePublicKeySignature(
-      pubkeys[i].slice(1),
+      pubkeys[j].slice(1),
       currentMessageHash
     );
+
+    ringNonces.push(toBytes(noncePoint.x));
 
     currentMessageHash = Fn.fromBytes(
       sha256(
         concatBytes(
           message,
-          toBytes(noncePoint.X),
+          toBytes(noncePoint.x),
           new Uint8Array([ringIndex]),
-          toBytes(BigInt(i))
+          toBytes(BigInt(j))
         )
       )
     );
-    sigs[i] = signature;
+    sigs[j] = signature;
   }
 
   return {
@@ -99,10 +100,18 @@ export function generatePublicKeysForRing(
   let pubkeys: Uint8Array[] = [];
   for (let i = 0; i < ringSize; i++) {
     const ephemeralSecret = secp256k1.utils.randomSecretKey();
-    const ephemeralPub =
+    let ephemeralPub =
       i === signerIndex
         ? signerPublicKey
         : secp256k1.getPublicKey(ephemeralSecret);
+
+    if (
+      i != signerIndex &&
+      !hasEven(secp256k1.Point.fromBytes(ephemeralPub).y)
+    ) {
+      ephemeralPub = secp256k1.getPublicKey(Fn.create(-Fn.fromBytes(ephemeralSecret)));
+    }
+
     pubkeys.push(ephemeralPub);
   }
 
