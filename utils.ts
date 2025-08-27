@@ -22,16 +22,24 @@ export function generatePublicKeySignature(
   let sPartOfSig = randomBytes(32);
   const P = lift_x(Fn.fromBytes(xOnlyPubkey));
 
-  // R = s*G + -eP
+  /* Changed from '-' to '+' to match the cool kids. 
+  The original paper seems inconsistent and uses '-' for signing and '+' for verification,
+  so I originally changed the verification process to match the signing process in the paper. 
+  Now I'm changing the signing process to match the verification process in the paper.
+  REF:
+    - https://github.com/BlockstreamResearch/secp256k1-zkp/blob/6152622613fdf1c5af6f31f74c427c4e9ee120ce/src/modules/rangeproof/borromean_impl.h#L148
+    - https://github.com/blockchain-research/crypto/blob/7a084ae2ca5ae0dc1a96aa86e42f01d8d7e4817a/brs/brs.go#L158
+  */
+  // R = s*G + eP
   let sG = G.multiply(Fn.fromBytes(sPartOfSig));
   let eP = P.multiply(messageHash);
-  let R = sG.add(eP.negate());
+  let R = sG.add(eP);
 
   let sig = new Uint8Array(32);
   sig.set(sPartOfSig, 0);
 
   //sanity check
-  let V1 = R.add(eP);
+  let V1 = R.add(eP.negate());
   if (!V1.equals(sG)) {
     throw new Error("Signature generation broken.");
   }
