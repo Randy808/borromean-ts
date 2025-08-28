@@ -101,7 +101,7 @@ for (let ringIndex = 0; ringIndex < NUMBER_OF_RINGS; ringIndex++) {
 
   let sig = new Uint8Array(32);
   // sig.set(toBytes(signerNoncePoint.x), 0);
-  let s = signerNonce + e_i * Fn.fromBytes(signerPrivateKey);
+  let s = signerNonce - e_i * Fn.fromBytes(signerPrivateKey);
   s = Fn.create(s);
   sig.set(toBytes(s), 0);
   ringSigCollection[ringIndex][signerIndex] = sig;
@@ -120,7 +120,7 @@ for (let ringIndex = 0; ringIndex < NUMBER_OF_RINGS; ringIndex++) {
     let sG = G.multiply(signature);
     const P = lift_x(Fn.fromBytes(xOnlyPubkey));
     let eP = P.multiply(e_i);
-    noncePoint = sG.add(eP.negate());
+    noncePoint = sG.add(eP);
 
     let messagePreimage = concatBytes(
       message,
