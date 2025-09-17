@@ -7,15 +7,28 @@ import {
   hasEven,
   toBytes,
   Fn,
+  Fp,
   generatePublicKeySignature,
   signPartOne as signFirstRoundForRing,
   generatePublicKeysForRing,
   lift_x,
 } from "./utils";
+import { invert } from "@noble/curves/abstract/modular";
 
 //Create a key pair
 let signerPrivateKey = secp256k1.utils.randomSecretKey();
 let signerPublicKey = secp256k1.getPublicKey(signerPrivateKey);
+
+//21
+let value = new Uint8Array([0x15]);
+let H = lift_x(Fn.fromBytes(secp256k1.utils.randomSecretKey()));
+let C = H.multiply(Fn.fromBytes(value)).add(G.multiply(Fn.fromBytes(signerPrivateKey)))
+
+//
+// publickKeysForRound.push(R)
+// publickKeysForRound.push(C - 2*j)
+
+
 
 // Normalize signer key to even-Y for x-only/BIP340 math
 const signerPoint = secp256k1.Point.fromHex(signerPublicKey);
@@ -34,6 +47,8 @@ let signerIndex = 2;
 if (signerIndex >= RING_SIZE) {
   throw new Error("k is greater than N");
 }
+
+
 
 let ringPubkeyCollection: Uint8Array[][] = Array(NUMBER_OF_RINGS)
   .fill(undefined)
@@ -54,9 +69,16 @@ signerNoncePoint = G.multiply(signerNonce);
 const ringSigCollection: Uint8Array[][] = [];
 const lastRingNonceCollection: Uint8Array[] = [];
 
+//Prove, step (2)
 for (let ringIndex = 0; ringIndex < NUMBER_OF_RINGS; ringIndex++) {
+
+  // for(let i = 0; i < signerIndex; i++) {
+  //   let r = secp256k1.utils.randomSecretKey();
+  //   lastRingNonceCollection.push(r);
+  // }
+
   let pubkeys = ringPubkeyCollection[ringIndex];
-  let { lastRingNonce, sigs } = signFirstRoundForRing(
+  let { lastRingNonce, sigs, lastMessageHash } = signFirstRoundForRing(
     signerNoncePoint,
     message,
     ringIndex,
@@ -65,9 +87,28 @@ for (let ringIndex = 0; ringIndex < NUMBER_OF_RINGS; ringIndex++) {
   );
 
   ringSigCollection.push(sigs);
-  lastRingNonceCollection.push(lastRingNonce);
+
+  let ringValue = 1 << ringIndex;
+  let R_i;
+
+  if(Fp.fromBytes(value) & BigInt(ringValue)) {
+    // C_i = r*G + v*H
+    let v = BigInt(1 << ringValue);
+    let vH = H.multiply(v);
+    let C_i = G.multiply(Fn.fromBytes(signerPrivateKey)).add(vH)
+    R_i = C_i.multiply(lastMessageHash)
+  }
+  else {
+    let r = secp256k1.utils.randomSecretKey();
+    R_i = G.multiply(Fn.fromBytes(r));
+  }
+
+
+  lastRingNonceCollection.push(toBytes(R_i.x));
 }
 
+
+// (3)
 let concatenatedNonces = concatBytes();
 for (let i = 0; i < NUMBER_OF_RINGS; i++) {
   let lastRingNonce = lastRingNonceCollection[i];
@@ -76,27 +117,67 @@ for (let i = 0; i < NUMBER_OF_RINGS; i++) {
 
 let sharedRootMessageHash = Fn.fromBytes(sha256(concatenatedNonces));
 
+
+// (4)
 for (let ringIndex = 0; ringIndex < NUMBER_OF_RINGS; ringIndex++) {
   let e_i = sharedRootMessageHash;
   // Fill in signatures from 0 to signer's index
+
+  let ringValue = 1 << ringIndex;
   for (let pubkeyIndex = 0; pubkeyIndex < signerIndex; pubkeyIndex++) {
     let pubkeys = ringPubkeyCollection[ringIndex];
+
+    //change this
     let { signature, noncePoint } = generatePublicKeySignature(
       pubkeys[pubkeyIndex].slice(1),
       e_i
     );
 
-    ringSigCollection[ringIndex][pubkeyIndex] = signature;
-    e_i = Fn.fromBytes(
-      sha256(
-        concatBytes(
-          message,
-          toBytes(noncePoint.x),
-          new Uint8Array([ringIndex]),
-          toBytes(BigInt(pubkeyIndex))
+    
+    let R_i;
+
+    if(Fp.fromBytes(value) & BigInt(ringValue)) {
+      // // C_i = r*G + v*H
+      // let v = BigInt(1 << ringValue);
+      // let vH = H.multiply(v);
+      // let C_i = G.multiply(Fn.fromBytes(signerPrivateKey)).add(vH)
+      // R_i= C_i.multiply(lastMessageHash)
+
+
+
+    }
+    else {
+
+      // I put coefficients in 'lastRingNonceCollection' but I should break them into their own arr
+      // C_i = (k[i]/e_i)*G 
+      // (k[i]/e_i) is our blinding factor and there's no value component because the value
+      // contribution of this ring is 0
+
+      let k = Fn.fromBytes(lastRingNonceCollection[ringIndex]);
+      let e_i_inverse = invert(k, Fn.ORDER)
+      let blindCoeff = k * e_i_inverse;
+      // let C_i = G.multiply(blindCoeff);
+
+
+      // k
+      let r = Fn.fromBytes(secp256k1.utils.randomSecretKey());
+      // m[i]*j
+      let v = BigInt(1 << ringValue);
+
+      // k + e*(m[i]*j)*H
+      //The above is what happens when you set v in 'sG - e*(rG + 0*H - m[i]*j*H)'
+      let preimage = r + H.multiply(v).multiply(e_i).x
+      R_i = G.multiply(r);
+      signature = toBytes(r + e_i*blindCoeff)
+
+       e_i = Fn.fromBytes(
+        sha256(
+          toBytes(preimage)
         )
-      )
-    );
+      );
+    }
+
+    ringSigCollection[ringIndex][pubkeyIndex] = signature;
   }
 
   let sig = new Uint8Array(32);

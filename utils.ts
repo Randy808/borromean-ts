@@ -61,10 +61,7 @@ export function signPartOne(
   ringNonces.push(toBytes(signerNoncePoint.x));
 
   let signerMessagePreimage = concatBytes(
-    message,
     toBytes(signerNoncePoint.x),
-    new Uint8Array([ringIndex]),
-    Fp.toBytes(BigInt(signerIndex))
   );
 
   let signerGeneratedMessageHash = Fn.fromBytes(sha256(signerMessagePreimage));
@@ -84,10 +81,7 @@ export function signPartOne(
     currentMessageHash = Fn.fromBytes(
       sha256(
         concatBytes(
-          message,
-          toBytes(noncePoint.x),
-          new Uint8Array([ringIndex]),
-          toBytes(BigInt(j))
+          toBytes(noncePoint.x)
         )
       )
     );
@@ -97,6 +91,7 @@ export function signPartOne(
   return {
     sigs,
     lastRingNonce: ringNonces[ringNonces.length - 1],
+    lastMessageHash: currentMessageHash
   };
 }
 
