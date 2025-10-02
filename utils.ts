@@ -1,6 +1,6 @@
 import { WeierstrassPoint } from "@noble/curves/abstract/weierstrass";
 import { schnorr, secp256k1 } from "@noble/curves/secp256k1";
-import { bytesToNumberBE } from "@noble/curves/utils";
+import { bytesToNumberBE, numberToBytesBE } from "@noble/curves/utils";
 import { sha256 } from "@noble/hashes/sha2";
 import { concatBytes, randomBytes } from "@noble/hashes/utils";
 
@@ -14,12 +14,11 @@ export const num = bytesToNumberBE;
 
 export function generatePublicKeySignature(
   xOnlyPubkey: Uint8Array,
-  messageHash: bigint
+  messageHash: bigint,
+  sPartOfSig: Uint8Array
 ): {
-  signature: Uint8Array;
   noncePoint: any;
 } {
-  let sPartOfSig = randomBytes(32);
   const P = lift_x(Fn.fromBytes(xOnlyPubkey));
 
   /* Changed from '-' to '+' to match the cool kids. 
@@ -35,9 +34,6 @@ export function generatePublicKeySignature(
   let eP = P.multiply(messageHash);
   let R = sG.add(eP);
 
-  let sig = new Uint8Array(32);
-  sig.set(sPartOfSig, 0);
-
   //sanity check
   let V1 = R.add(eP.negate());
   if (!V1.equals(sG)) {
@@ -45,53 +41,53 @@ export function generatePublicKeySignature(
   }
 
   return {
-    signature: sig,
     noncePoint: R,
   };
 }
 
 export function signPartOne(
-  signerNoncePoint: WeierstrassPoint<bigint>,
+  signerNoncePoint: Uint8Array,
   message: Uint8Array,
   ringIndex: number,
   signerIndex: number,
-  pubkeys: Uint8Array[]
+  pubkeys: Uint8Array[],
+  s: Uint8Array[][]
 ) {
   let ringNonces: Uint8Array[] = [];
-  ringNonces.push(toBytes(signerNoncePoint.x));
+  ringNonces.push(signerNoncePoint);
 
   let signerMessagePreimage = concatBytes(
-    toBytes(signerNoncePoint.x),
+    signerNoncePoint,
+    message,
+    numberToBytesBE(ringIndex, 4),
+    numberToBytesBE(signerIndex, 4)
   );
 
   let signerGeneratedMessageHash = Fn.fromBytes(sha256(signerMessagePreimage));
 
-  let sigs = Array(pubkeys.length);
+  if (s[ringIndex].length != pubkeys.length) {
+    throw new Error("signature array must equal pubkey array length");
+  }
   let currentMessageHash = signerGeneratedMessageHash;
 
   //For every index after the signer's
   for (let j = signerIndex + 1; j < pubkeys.length; j++) {
-    let { signature, noncePoint } = generatePublicKeySignature(
+    let { noncePoint } = generatePublicKeySignature(
       pubkeys[j].slice(1),
-      currentMessageHash
+      currentMessageHash,
+      s[ringIndex][j]
     );
 
     ringNonces.push(toBytes(noncePoint.x));
 
     currentMessageHash = Fn.fromBytes(
-      sha256(
-        concatBytes(
-          toBytes(noncePoint.x)
-        )
-      )
+      sha256(concatBytes(toBytes(noncePoint.x)))
     );
-    sigs[j] = signature;
   }
 
   return {
-    sigs,
     lastRingNonce: ringNonces[ringNonces.length - 1],
-    lastMessageHash: currentMessageHash
+    lastMessageHash: currentMessageHash,
   };
 }
 
@@ -112,7 +108,9 @@ export function generatePublicKeysForRing(
       i != signerIndex &&
       !hasEven(secp256k1.Point.fromBytes(ephemeralPub).y)
     ) {
-      ephemeralPub = secp256k1.getPublicKey(Fn.create(-Fn.fromBytes(ephemeralSecret)));
+      ephemeralPub = secp256k1.getPublicKey(
+        Fn.create(-Fn.fromBytes(ephemeralSecret))
+      );
     }
 
     pubkeys.push(ephemeralPub);
