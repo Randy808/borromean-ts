@@ -1,3 +1,4 @@
+import { CurvePoint } from "@noble/curves/abstract/curve";
 import { WeierstrassPoint } from "@noble/curves/abstract/weierstrass";
 import { schnorr, secp256k1 } from "@noble/curves/secp256k1";
 import { bytesToNumberBE, numberToBytesBE } from "@noble/curves/utils";
@@ -13,13 +14,13 @@ export const G = secp256k1.Point.BASE;
 export const num = bytesToNumberBE;
 
 export function generatePublicKeySignature(
-  xOnlyPubkey: Uint8Array,
+  P: CurvePoint<any, any>,
   messageHash: bigint,
   sPartOfSig: Uint8Array
 ): {
-  noncePoint: any;
+  noncePoint: CurvePoint<any, any>;
 } {
-  const P = lift_x(Fn.fromBytes(xOnlyPubkey));
+  // const P = lift_x(Fn.fromBytes(xOnlyPubkey));
 
   /* Changed from '-' to '+' to match the cool kids. 
   The original paper seems inconsistent and uses '-' for signing and '+' for verification,
@@ -50,40 +51,49 @@ export function signPartOne(
   message: Uint8Array,
   ringIndex: number,
   signerIndex: number,
-  pubkeys: Uint8Array[],
+  pubkeys: CurvePoint<any, any>[],
   s: Uint8Array[][]
 ) {
+  if(ringIndex === 5) {
+      debugger
+    }
   let ringNonces: Uint8Array[] = [];
+  // let reconstuctedPoint = lift_x(Fn.fromBytes(signerNoncePoint.subarray(1)))
+  // signerNoncePoint = reconstuctedPoint.negate().toBytes()
   ringNonces.push(signerNoncePoint);
 
-  let signerMessagePreimage = concatBytes(
-    signerNoncePoint,
-    message,
-    numberToBytesBE(ringIndex, 4),
-    numberToBytesBE(signerIndex, 4)
-  );
+  // let signerMessagePreimage = signerNoncePoint;
 
-  let signerGeneratedMessageHash = Fn.fromBytes(sha256(signerMessagePreimage));
+  // let signerGeneratedMessageHash = Fn.fromBytes(sha256(signerMessagePreimage));
 
   if (s[ringIndex].length != pubkeys.length) {
     throw new Error("signature array must equal pubkey array length");
   }
-  let currentMessageHash = signerGeneratedMessageHash;
+
+  let currentMessageHash = signerNoncePoint;
+  let noncePoint: CurvePoint<any, any> | undefined;
 
   //For every index after the signer's
   for (let j = signerIndex + 1; j < pubkeys.length; j++) {
-    let { noncePoint } = generatePublicKeySignature(
-      pubkeys[j].slice(1),
-      currentMessageHash,
+    let currentMessagePreimage = concatBytes(
+      noncePoint ? noncePoint?.toBytes() : signerNoncePoint,
+      message,
+      numberToBytesBE(ringIndex, 4),
+      numberToBytesBE(j, 4)
+    );
+    currentMessageHash = sha256(currentMessagePreimage);
+
+    noncePoint = generatePublicKeySignature(
+      pubkeys[j],
+      Fp.fromBytes(currentMessageHash),
       s[ringIndex][j]
-    );
+    ).noncePoint;
 
-    ringNonces.push(toBytes(noncePoint.x));
-
-    currentMessageHash = Fn.fromBytes(
-      sha256(concatBytes(toBytes(noncePoint.x)))
-    );
+    ringNonces.push(noncePoint.toBytes());
+    currentMessageHash = noncePoint.toBytes();
   }
+
+  // currentMessageHash = Buffer.from(Fn.fromBytes(currentMessageHash.subarray(1)).toString(16)) as Uint8Array
 
   return {
     lastRingNonce: ringNonces[ringNonces.length - 1],

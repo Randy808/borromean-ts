@@ -13,6 +13,8 @@ import {
   generatePublicKeysForRing,
   lift_x,
 } from "./utils";
+import { WeierstrassPoint } from "@noble/curves/abstract/weierstrass";
+import { CurvePoint } from "@noble/curves/abstract/curve";
 
 // let ringPubkeyCollection: Uint8Array[][] = Array(NUMBER_OF_RINGS)
 //   .fill(undefined)
@@ -65,11 +67,11 @@ let k = Array(NUMBER_OF_RINGS)
 //secp256k1_borromean_sign([], ringPubkeyCollection,
 //Return e0e0,
 
-secp256k1_borromean_sign(s, pubs, k, sec, secidx, NUMBER_OF_RINGS, message);
+// secp256k1_borromean_sign(s, pubs, k, sec, secidx, NUMBER_OF_RINGS, message);
 
 export function secp256k1_borromean_sign(
   s: Uint8Array[][],
-  pubs: Uint8Array[][],
+  pubs: CurvePoint<any, any>[][],
   k: Uint8Array[],
   sec: Uint8Array[],
   secidx: number[],
@@ -79,11 +81,15 @@ export function secp256k1_borromean_sign(
   const lastRingNonceCollection: Uint8Array[] = [];
 
   for (let ringIndex = 0; ringIndex < nrings; ringIndex++) {
-    let signerNoncePoint = secp256k1.getPublicKey(k[ringIndex]);
+    let signerNoncePoint = G.multiply(Fp.fromBytes(k[ringIndex]));
+
+    if(ringIndex === 5) {
+      debugger
+    }
 
     let pubkeys = pubs[ringIndex];
     let { lastRingNonce } = signFirstRoundForRing(
-      signerNoncePoint,
+      signerNoncePoint.toBytes(),
       m,
       ringIndex,
       secidx[ringIndex],
@@ -100,6 +106,9 @@ export function secp256k1_borromean_sign(
     concatenatedNonces = concatBytes(concatenatedNonces, lastRingNonce);
   }
 
+  concatenatedNonces = concatBytes(concatenatedNonces, m);
+
+  let xx = sha256(concatenatedNonces)
   let sharedRootMessageHash = Fn.fromBytes(sha256(concatenatedNonces));
 
   for (let ringIndex = 0; ringIndex < nrings; ringIndex++) {
@@ -110,7 +119,7 @@ export function secp256k1_borromean_sign(
     for (let pubkeyIndex = 0; pubkeyIndex < signerIndex; pubkeyIndex++) {
       let pubkeys = pubs[ringIndex];
       let { noncePoint } = generatePublicKeySignature(
-        pubkeys[pubkeyIndex].slice(1),
+        pubkeys[pubkeyIndex],
         e_i,
         s[ringIndex][pubkeyIndex]
       );
