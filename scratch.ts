@@ -86,9 +86,30 @@ let arrToScalar = (arr: Array<bigint>): bigint => {
 
 
 console.log(arrToPoint([
-2371269361520435n, 196920563370754n, 4137252736472029n, 
-      2382499598168164n, 63939177161758n
+854593940264718n, 1477310116682000n, 1654776827641593n, 3180578871298847n, 
+      65172788208914n
 ]).toString(16))
+
+
+//p pubs[14*4] == pubs[14] == 3b4638e3e512b4cb839cdcb1f5e102c0fe7ef953f9b10ba59103093fa83c970e (so 13th one)
+//14,0: b98cf3dd2315aaeb224b7fcc4c7bdca662cdcf39bc9a5b08c3a0ddefbe499234
+//14, 3: b153a0fbfbaf91b6371b4a657e43fb9d71753600cb56a36aceafd77e12e6e524
+
+//s[4][3] = 7c128b3ac6c1b6b7550f82c756cd150e20de06c946b482b1fa80d32a56177e72 // correct
+
+//s0 4b127598903c02fb708bd522be75ba95706a8981b74bb97413725c3d5fae9b2c
+// last sig of first ring should be 0
+// second to last of first should be 9aa52550e1d93252424272df694679330f819ac4dc840fb5f99fef7911a8214d
+
+
+////first sig of last ring 0
+//second sig of last ring 6299e1f095e2758c595fda1829045442a2c744ebe1f41464cb2cacd92b5864e7
+// 3rd sig last ring 5876d14d4e05f805859aee7625927617120fcce4847151ada12053be54682c77
+//last sig e2bd36f29749b407e2531c0e54de2ee3486b1cae01c6166ca45c845e810d17d9
+
+// fourth* ring blind: 8f6473594cec411376620fe057904bf68a29e55cb9c89affb8c429194e58ed92
+// last ring blind bfc433c3673a0676e05ebc953bd320c775578f7dc4252039af395f64f6a44f48
+// blinds are correct: bfc433c3673a0676e05ebc953bd320c775578f7dc4252039af395f64f6a44f48
 
 /*3a26fff1241e876deea39f064eb2cf37b413dd0b319243a8b0286ca82bf5cf33
 
@@ -121,6 +142,9 @@ p *genp
 blind:
 x/32b blind
 
+message hash for borromean right before borromean sign:
+x/32b tmp
+
 
 
 
@@ -136,4 +160,23 @@ genp
       3359337944824989, 106523285574344}}, y = {n = {2961459019530422, 
       1277607914326066, 2455117097591148, 473051163415351, 43552662608318}}, 
   infinity = 0}
+
+
+
+  My ring 14 nonce differs.
+
+  Mine:
+Buffer.from(lastRingNonceCollection[14]).toString('hex')
+035d2b7fb19b9381b3c2749f9d1324498df58db883427d774605c508b961fbdf0b
+
+  theirs:
+0xffff8ef36110: 0x03    0x04    0xcc    0x8f    0x14    0xd0    0x1f    0x97
+0xffff8ef36118: 0xee    0x09    0xec    0xe5    0xc8    0x64    0x1c    0x6e
+0xffff8ef36120: 0xa1    0x29    0xfc    0xd7    0x64    0x4c    0x96    0xca
+0xffff8ef36128: 0xdd    0x01    0x17    0x9b    0xdf    0x0f    0xa3    0xee
+0xffff8ef36130: 0xec
+
+
+sig 14:
+aef03b2cffadab2c9618e93a54b51cfaa17dcdb8f668c1eded883db61eca0ec0
 */

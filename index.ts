@@ -83,9 +83,9 @@ export function secp256k1_borromean_sign(
   for (let ringIndex = 0; ringIndex < nrings; ringIndex++) {
     let signerNoncePoint = G.multiply(Fp.fromBytes(k[ringIndex]));
 
-    if(ringIndex === 5) {
-      debugger
-    }
+    //  if(ringIndex === 25) {
+    //   debugger;
+    //  }
 
     let pubkeys = pubs[ringIndex];
     let { lastRingNonce } = signFirstRoundForRing(
@@ -110,10 +110,21 @@ export function secp256k1_borromean_sign(
 
   let xx = sha256(concatenatedNonces)
   let sharedRootMessageHash = Fn.fromBytes(sha256(concatenatedNonces));
+  //correct hash should be: 1a4a550fee295a980018512f7fa9129db8e7bddd4eece99b7c2be41617bea1fa
 
   for (let ringIndex = 0; ringIndex < nrings; ringIndex++) {
-    let e_i = sharedRootMessageHash;
     let signerIndex = secidx[ringIndex];
+
+    let e_i = Fn.fromBytes(
+        sha256(
+          concatBytes(
+            toBytes(sharedRootMessageHash),
+            message,
+            new Uint8Array([ringIndex]),
+            toBytes(BigInt(0))
+          )
+        )
+      )
 
     // Fill in signatures from 0 to signer's index
     for (let pubkeyIndex = 0; pubkeyIndex < signerIndex; pubkeyIndex++) {

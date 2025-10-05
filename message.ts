@@ -1,5 +1,5 @@
-const assetId = "25b251070e29ca19043cf33ccd7324e2ddab03ecc4ae0b5e77c4fc0e5cf6c95f";
-const assetBlinder = "a38ab043aebf81435ef22eed980a203ba6d98728b8e7b937c09d71dc4b879de3";
+const assetId = "25b251070e29ca19043cf33ccd7324e2ddab03ecc4ae0b5e77c4fc0e5cf6c95a";
+const assetBlinder = "f7c6bbdbd2c5041e210f69e1fe2bfa27928eb87e198bc137495becca70a93182";
 
 //6480 0s, so 3240 bytes
 let zeros = new Array(3240).fill(0).reduce((acc: Buffer, n) => {

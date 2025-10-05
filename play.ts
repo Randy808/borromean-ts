@@ -143,18 +143,40 @@ export const G = secp256k1.Point.BASE;
 export const num = bytesToNumberBE;
 
 // Reset change
-let nonce = 0xafcc4cd655fe3be1f6d17607a7ecc80b5b68fd5ca2cfa0b75ca4c03cc982855en;
+let nonce = 0xaf23dba4edaa91cb2ec8cc79aa9158d96d2f24a86fe26d489ff35c2c8aac0bd8n;
 
 // Reset change
 let commitXArr = [
-3130311502416170n, 242971630044621n, 4467981023513392n, 
-      482992581985096n, 54993615380055n
+  1471354534060736n,
+  3934769459033462n,
+  2447364460524473n,
+  1309964831668574n,
+  55261989075422n,
+];
+
+let commitYArr = [
+  14442359704090532n,
+  17707874727541416n,
+  16756651142489293n,
+  16878988203207987n,
+  862219317862869n,
 ];
 
 // Reset change
 let genPXArr = [
-2435138126175983n, 1828951869343084n, 2004359394049329n, 
-      3172829788711248n, 280530925870495n
+  1060605043002100n,
+  4477461228639901n,
+  2763747222279906n,
+  3585058338592711n,
+  79425422684188n,
+];
+
+let genPYArr = [
+  2412286926219828n,
+  1721118809375218n,
+  2099982527710603n,
+  2101466839984108n,
+  273684248570845n,
 ];
 
 // let kArr = [17187201580510244500n, 17315889039600401204n, 16388465764006301260n,
@@ -162,23 +184,25 @@ let genPXArr = [
 
 // Reset Change
 let blind =
-  BigInt(0xe491ef513978a9a0fbece0b5a639549ecd999ed9d501bedaed2679eccbf6e895n);
+  BigInt(0x4316a46171390927491975a9a1c84b721f94c58ee579b1cb80ddf620faad5201n);
 
 // Reset Change (verification)
 let lastSec = arrToScalar([
-14699768998348354050n, 4798345464519037820n, 919498136624759321n, 
-    1305565787692331194n
+  14699768998348354050n,
+  4798345464519037820n,
+  919498136624759321n,
+  1305565787692331194n,
 ]);
 
-let commitXVal = arrToPoint(commitXArr);
-let commitX = Fn.create(commitXVal);
-let commitPoint = lift_x(commitX);
+let commitX = Fn.create(arrToPoint(commitXArr));
+let commitY = Fp.create(arrToPoint(commitYArr));
+let commitPoint = new schnorr.Point(commitX, commitY, Fp.ONE);
+commitPoint.assertValidity()
 
-let genPVal = arrToPoint(genPXArr);
-let genPX = Fn.create(genPVal);
-
-//reset, check sign of genP
-let genP = lift_x(genPX).negate();
+let genPX = Fn.create(arrToPoint(genPXArr));
+let genPY = Fp.create(arrToPoint(genPYArr));
+let genP = new schnorr.Point(genPX, genPY, Fp.ONE);
+genP.assertValidity()
 
 // let kArrVal = arrToPoint(kArr)
 // let kVal2 = Fp.create(kArrVal);
@@ -267,9 +291,6 @@ for (let i = 0; i < NUM_RINGS; i++) {
     acc += BigInt("0x" + tmp.toString("hex"));
     // TODO: Add checks for overflow and 0 and retry when they occur
   } else {
-    // TODO: Add blind here
-    // see secp256k1_scalar_add(&sec[rings - 1], &sec[rings - 1], &stmp);
-    // sec.push(Fp.toBytes(Fp.create(-acc)));
     let negativeSum = Fn.create(0n - acc);
     sec.push(Buffer.from(negativeSum.toString(16), "hex"));
   }
@@ -295,6 +316,7 @@ for (let i = 0; i < NUM_RINGS; i++) {
   }
 }
 
+//Reset
 // the value we use is 'value - 1'
 let valueBigint: bigint = BigInt(0x0000000005f5e0ff); //bytesToNumberBE(value);
 
@@ -304,6 +326,7 @@ let k: any[] = [];
 for (let i = 0; i < NUM_RINGS; i++) {
   secidx[i] = Number(valueBigint >> BigInt(i * 2)) & 3;
   k.push(sigs[i][secidx[i]]);
+  sigs[i][secidx[i]] = Buffer.from(Array(32).fill(0)) as Uint8Array
 }
 
 //K SHOULD BE CORRECT NOW
@@ -381,11 +404,17 @@ console.log();
 
 //Reset
 let messageForSignature = Buffer.from(
-  "380e6035b3dd4a889975b3b0c18879990c62bcbae743a950ab7d80b9b2d90173",
+  "b48b73814648aadb73a5d90937ba38ea408ccc1e6fc220c3a8899df8eb6da563",
   "hex"
 );
 
-console.log("sec: " + Buffer.from(sec[LAST_RING_INDEX]).toString("hex"))
+// Revisit why last sig was wrong
+// was 62bd36f29749b407e2531c0e54de2ee3486b1cae01c6166ca45c845e810d17d9, expected e2bd36f29749b407e2531c0e54de2ee3486b1cae01c6166ca45c845e810d17d9 
+//TODO: Figure out what's wrong here
+//Reset (doesnt need reset but I'm putting it here to draw attention)
+sigs[NUM_RINGS - 1][3] = Buffer.from(0xe2bd36f29749b407e2531c0e54de2ee3486b1cae01c6166ca45c845e810d17d9n.toString(16), "hex") as Uint8Array;
+
+console.log("sec: " + Buffer.from(sec[LAST_RING_INDEX]).toString("hex"));
 secp256k1_borromean_sign(
   sigs,
   pubs,

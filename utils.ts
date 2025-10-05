@@ -54,9 +54,58 @@ export function signPartOne(
   pubkeys: CurvePoint<any, any>[],
   s: Uint8Array[][]
 ) {
-  if(ringIndex === 5) {
-      debugger
-    }
+  let ringNonces: Uint8Array[] = [];
+  // let reconstuctedPoint = lift_x(Fn.fromBytes(signerNoncePoint.subarray(1)))
+  // signerNoncePoint = reconstuctedPoint.negate().toBytes()
+  ringNonces.push(signerNoncePoint);
+
+  // let signerMessagePreimage = signerNoncePoint;
+
+  // let signerGeneratedMessageHash = Fn.fromBytes(sha256(signerMessagePreimage));
+
+  if (s[ringIndex].length != pubkeys.length) {
+    throw new Error("signature array must equal pubkey array length");
+  }
+
+  let currentMessageHash = signerNoncePoint;
+  let noncePoint: CurvePoint<any, any> | undefined;
+
+  //For every index after the signer's
+  for (let j = signerIndex + 1; j < pubkeys.length; j++) {
+    let currentMessagePreimage = concatBytes(
+      noncePoint ? noncePoint?.toBytes() : signerNoncePoint,
+      message,
+      numberToBytesBE(ringIndex, 4),
+      numberToBytesBE(j, 4)
+    );
+    currentMessageHash = sha256(currentMessagePreimage);
+
+    noncePoint = generatePublicKeySignature(
+      pubkeys[j],
+      Fp.fromBytes(currentMessageHash),
+      s[ringIndex][j]
+    ).noncePoint;
+
+    ringNonces.push(noncePoint.toBytes());
+    currentMessageHash = noncePoint.toBytes();
+  }
+
+  // currentMessageHash = Buffer.from(Fn.fromBytes(currentMessageHash.subarray(1)).toString(16)) as Uint8Array
+
+  return {
+    lastRingNonce: ringNonces[ringNonces.length - 1],
+    lastMessageHash: currentMessageHash,
+  };
+}
+
+export function signPartTwo(
+  signerNoncePoint: Uint8Array,
+  message: Uint8Array,
+  ringIndex: number,
+  signerIndex: number,
+  pubkeys: CurvePoint<any, any>[],
+  s: Uint8Array[][]
+) {
   let ringNonces: Uint8Array[] = [];
   // let reconstuctedPoint = lift_x(Fn.fromBytes(signerNoncePoint.subarray(1)))
   // signerNoncePoint = reconstuctedPoint.negate().toBytes()
