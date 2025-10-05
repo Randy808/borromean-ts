@@ -1,6 +1,6 @@
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 
-import { asciiToBytes, concatBytes, randomBytes } from "@noble/curves/utils.js";
+import { asciiToBytes, concatBytes, numberToBytesBE, randomBytes } from "@noble/curves/utils.js";
 import { sha256 } from "@noble/hashes/sha2";
 import {
   G,
@@ -29,7 +29,6 @@ function getArrayWithRandomByteValues(size: number): Uint8Array[] {
 }
 
 const NUMBER_OF_RINGS = 2;
-let message = asciiToBytes("hello world");
 
 let rsizes = Array(26).fill(4);
 
@@ -119,9 +118,9 @@ export function secp256k1_borromean_sign(
         sha256(
           concatBytes(
             toBytes(sharedRootMessageHash),
-            message,
-            new Uint8Array([ringIndex]),
-            toBytes(BigInt(0))
+            m,
+            numberToBytesBE(ringIndex, 4),
+            numberToBytesBE(0, 4)
           )
         )
       )
@@ -140,13 +139,16 @@ export function secp256k1_borromean_sign(
       e_i = Fn.fromBytes(
         sha256(
           concatBytes(
-            toBytes(noncePoint.x),
-            message,
-            new Uint8Array([ringIndex]),
-            toBytes(BigInt(pubkeyIndex))
+            noncePoint.toBytes(),
+            m,
+            numberToBytesBE(ringIndex, 4),
+            numberToBytesBE(pubkeyIndex + 1, 4)
           )
         )
       );
+
+      let r = 9
+      // console.log(e_i.toString(16))
     }
 
     // Overwrite fake signature in the signer index with a real signature from the signer
@@ -154,7 +156,8 @@ export function secp256k1_borromean_sign(
     let signerSignature =
       Fp.fromBytes(k[ringIndex]) -
       Fp.create(e_i) * Fn.fromBytes(sec[ringIndex]);
-    s[ringIndex][signerIndex] = toBytes(Fp.create(signerSignature));
+    s[ringIndex][signerIndex] = toBytes(Fn.create(signerSignature));
+    console.log(Buffer.from(s[ringIndex][signerIndex]).toString("hex"))
   }
 }
 

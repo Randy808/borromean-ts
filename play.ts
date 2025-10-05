@@ -408,6 +408,8 @@ let messageForSignature = Buffer.from(
   "hex"
 );
 
+//TODO: Look at that special logic using '-=' when setting prep
+
 // Revisit why last sig was wrong
 // was 62bd36f29749b407e2531c0e54de2ee3486b1cae01c6166ca45c845e810d17d9, expected e2bd36f29749b407e2531c0e54de2ee3486b1cae01c6166ca45c845e810d17d9 
 //TODO: Figure out what's wrong here

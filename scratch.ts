@@ -85,11 +85,11 @@ let arrToScalar = (arr: Array<bigint>): bigint => {
 };
 
 
-console.log(arrToPoint([
-854593940264718n, 1477310116682000n, 1654776827641593n, 3180578871298847n, 
-      65172788208914n
+console.log(arrToScalar([
+8926734743060457137n, 9537975852501016270n, 16057780301889244868n, 
+    3447950041500958693n
 ]).toString(16))
-
+//new e: 5194f98a1973b8c0fb2650231b06ede734b8969e66f019b09fb2c2edcf6c816
 
 //p pubs[14*4] == pubs[14] == 3b4638e3e512b4cb839cdcb1f5e102c0fe7ef953f9b10ba59103093fa83c970e (so 13th one)
 //14,0: b98cf3dd2315aaeb224b7fcc4c7bdca662cdcf39bc9a5b08c3a0ddefbe499234
@@ -179,4 +179,9 @@ Buffer.from(lastRingNonceCollection[14]).toString('hex')
 
 sig 14:
 aef03b2cffadab2c9618e93a54b51cfaa17dcdb8f668c1eded883db61eca0ec0
+
+
+
+ To verify signatures from gdb (replace 20 with desired 'i'):
+ p s[20*4 + secidx[20]]
 */
