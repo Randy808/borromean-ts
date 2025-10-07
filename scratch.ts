@@ -1,5 +1,5 @@
 import { schnorr } from "@noble/curves/secp256k1";
-import { Fn } from "./utils";
+import { Fn, Fp } from "./utils";
 
 let arrToPoint = (arr: Array<bigint>): bigint => {
   return arr.reduce((acc: bigint, curr, i: number): bigint => {
@@ -18,12 +18,12 @@ function jacobianArrToProjectivePoint(
   y_limbs: bigint[],
   z_limbs: bigint[]
 ) {
-  const p = 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2fn;
+  const p: bigint = 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2fn;
 
   // Convert limb arrays to bigints
-  const x_jac = arrToPoint(x_limbs);
-  const y_jac = arrToPoint(y_limbs);
-  const z_jac = arrToPoint(z_limbs);
+  const x_jac: bigint = Fp.create(arrToPoint(x_limbs));
+  const y_jac: bigint = Fp.create(arrToPoint(y_limbs));
+  const z_jac: bigint = Fp.create(arrToPoint(z_limbs));
 
   // Convert from Jacobian (X, Y, Z) to Projective (X', Y', Z')
   // Jacobian: affine point is (X/Z², Y/Z³)
@@ -38,33 +38,25 @@ function jacobianArrToProjectivePoint(
   const z_proj = z3;
 
   return new schnorr.Point(
-    Fn.create(x_proj),
-    Fn.create(y_proj),
-    Fn.create(z_proj)
+    Fp.create(x_proj),
+    Fp.create(y_proj),
+    Fp.create(z_proj)
   );
 }
 
 let x = jacobianArrToProjectivePoint(
   [
-    2237712096142064n,
-    6118543680428061n,
-    5661755893269285n,
-    5093000537889386n,
-    185517524850791n,
+    4866259226170064n, 2378175099659704n, 5908122959302592n, 
+      6550776891409480n, 264261619153502n
   ],
   [
-    20319635515123069n,
-    19669292734376138n,
-    19017741244279886n,
-    18639694936018407n,
-    1127062039601232n,
+    18917814979659974n, 
+      19442678258738232n, 17650498300672612n, 17661547974393009n, 
+      1202890606620668n
   ],
   [
-    3578244923336438n,
-    1150374887650552n,
-    4227050510168899n,
-    1537668810532209n,
-    166168209568631n,
+1597975539001942n, 597842873670386n, 
+      2820681357962310n, 1410769394091263n, 256511569101294n
   ]
 );
 
@@ -91,11 +83,16 @@ let arrToScalar = (arr: Array<bigint>): bigint => {
 };
 
 
-console.log(arrToScalar([
-10788147881457805524n, 2868124121116809404n, 11856395628012557814n, 
-    4025405479109603795n
+console.log(arrToPoint([
+3265982544138575n, 
+      1390286232566149n, 3140963245541895n, 3471786715142565n, 94125363524639n
 ]).toString(16))
 
+// console.log(x.y)
+// console.log(x.toBytes())
+
+//sec0 8769c9a2a381d447bc1e984e79a41e48d84a54597baf8ec53c658b71417c5be1
+//sec25 c91667c478adee1d8e3266d84120b9b1ec1d02a41768b08671f10b8799fccf1c
 // the last sig is NOT correct. c09b1ddb3f8ff677111a7a9f40bc8795b0f80b9173aaacbdad4d3cefbcaf2ae0, c09b1ddb3f8ff677111a7a9ab0a9986ab0f80b9483bfb342ad4d3cea4cba351f
 // Last 21 bytes are incorrect (42 hex chars)
 // value comes too latee in prep but my comparisons seem okay for some reason?

@@ -167,10 +167,10 @@ function generateRangeProof(
             );
           }
 
-          if (i == LAST_RING_INDEX && j === STANDRAD_RING_SIZE - 1 && b == 10) {
-            console.log("--");
-            debugger;
-          }
+          // if (i == LAST_RING_INDEX && j === STANDRAD_RING_SIZE - 1 && b == 10) {
+          //   console.log("--");
+          //   debugger;
+          // }
           tmp[b] ^=
             message[(i * STANDRAD_RING_SIZE + j) * ENCRYPTION_CHUNK_SIZE + b];
           message[(i * STANDRAD_RING_SIZE + j) * ENCRYPTION_CHUNK_SIZE + b] =
@@ -235,6 +235,40 @@ function generateRangeProof(
   //Reset (doesnt need reset but I'm putting it here to draw attention)
   // sigs[NUM_RINGS - 1][3] = Buffer.from(0xe2bd36f29749b407e2531c0e54de2ee3486b1cae01c6166ca45c845e810d17d9n.toString(16), "hex") as Uint8Array;
 
+  let ringPubkeysForMessage = pubs.map((ringPubkeys) => {
+    let serializedRingPubkey = ringPubkeys[0].toBytes();
+    
+    try {
+      Fp.sqrt(ringPubkeys[0].y);
+      serializedRingPubkey[0] = 0;
+    } catch (e) {
+      serializedRingPubkey[0] = 1;
+    }
+
+    return serializedRingPubkey;
+  });
+
+  ringPubkeysForMessage.pop();
+
+  //RESET
+  let extraCommit = "001466f05bc559d7e0d8471c703089d79e582fdd731b";
+
+  let messagePreimage = concatBytes(
+      serializedPoint,
+      serializedGenP,
+      proof as Uint8Array,
+      ...ringPubkeysForMessage,
+      Buffer.from(extraCommit, "hex") as Uint8Array
+    )
+
+  let messageH = sha256(
+    messagePreimage
+  );
+
+  //last pub
+  // x f05833effa5f745e5999d84494fd6812474fc0872f00a0765b9149d6448f92d105335b77fdfe5
+  // y 9374c7456160001b94d77e5ce908000434cc1ef90fb7000a512852dd189200105335b77fdfe5
+
   console.log("sec: " + Buffer.from(sec[LAST_RING_INDEX]).toString("hex"));
   secp256k1_borromean_sign(
     sigs,
@@ -261,6 +295,21 @@ function generateRangeProof(
 // Finalize (like secp256k1_rfc6979_hmac_sha256_finalize)
 // return hmac.digest('hex');
 
+/* For proof I need to
+- have existing 
+- add 'signs' of first commit pubkey in each ring
+- add each ring sig in a flattened row to buffer
+
+
+message hash needs
+- commit
+- genP
+- proof (right b4 genrand)
+- first commit point of every ring
+- Thats it!
+
+*/
+
 /*
   1) Take a regtest tx
   2) parse liquid tx
@@ -271,42 +320,43 @@ function generateRangeProof(
 
 // Reset change
 let nonceArg =
-  0xa0d3d438bde2e8dd62e5e6e7588316edb4debdc0120f44484e822ffabf8fad0fn;
+  0xc5fa60ee454f208a379662fb31302d3caefc72d40919ed4ab58b511e57f2d40an;
 
 // Reset change
 // commit
 // commit
+// commit
 let commitXArr = [
-  0x5f19deb8268a1n,
-  0x63f0eb2a8eda1n,
-  0xc943c1ea2d15bn,
-  0xcb5a921cd1a8n,
-  0xcca930036a8bn,
+  1714103949332285n,
+  879411113475107n,
+  2963786728296436n,
+  3815466249912002n,
+  228220164417948n
 ];
 
 let commitYArr = [
-  0x37bc3c59dc91b4n,
-  0x3b96f131882f9bn,
-  0x362d8973c34259n,
-  0x3b0a2cb1a5c883n,
-  0x3da3b188cf72fn,
+  16764925268671686n,
+  14310197772141882n,
+  14836082064650123n,
+  17142388246015281n,
+  962893588244796n
 ];
 
 // genP
 let genPXArr = [
-  0xe375e578f387bn,
-  0x37ab390b93634n,
-  0xc75b7dc7c511cn,
-  0xa554894a0714cn,
-  0xafc8f534900cn,
+  1023526409959635n,
+  783448678690483n,
+  3394567772643830n,
+  656772673364555n,
+  43733853461695n
 ];
 
 let genPYArr = [
-  0x3f36e1a8dfa08n,
-  0xc5ebd52d04835n,
-  0x9cf10483a099bn,
-  0xdc22401bf074n,
-  0x23e9f9d513een,
+  1097129820796756n,
+  121470784712267n,
+  2529254140013483n,
+  4077288318088986n,
+  164250798402776n
 ];
 
 // let kArr = [17187201580510244500n, 17315889039600401204n, 16388465764006301260n,
@@ -314,7 +364,7 @@ let genPYArr = [
 
 // Reset Change
 let blindArg =
-  0x5644266b1cf1aa16678d099aafb60eb04da7accf673d9af4d48939858d374fe0n;
+  0x2ab2e5c830353a0d2d4e87e17f40b7e11bcc543c9a64d1e22f8af5b27977ef39n;
 
 let commitX = Fn.create(arrToPoint(commitXArr));
 let commitY = Fp.create(arrToPoint(commitYArr));
@@ -353,7 +403,7 @@ let messageForSignature = Buffer.from(
   "c42c2725c7b9d3184cafc6da719bae4834ed28ede84f1aa6d619ff3605bbd60f",
   "hex"
 );
-generateRangeProof(
+generateRangeProof.bind(this)(
   serializedPointArg,
   serializedGenPArg,
   blindArg,
