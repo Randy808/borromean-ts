@@ -143,66 +143,59 @@ export const G = secp256k1.Point.BASE;
 export const num = bytesToNumberBE;
 
 // Reset change
-let nonce = 0xaf23dba4edaa91cb2ec8cc79aa9158d96d2f24a86fe26d489ff35c2c8aac0bd8n;
+let nonce = 0xa0d3d438bde2e8dd62e5e6e7588316edb4debdc0120f44484e822ffabf8fad0fn;
 
 // Reset change
+// commit
+// commit
 let commitXArr = [
-  1471354534060736n,
-  3934769459033462n,
-  2447364460524473n,
-  1309964831668574n,
-  55261989075422n,
+  0x5f19deb8268a1n,
+  0x63f0eb2a8eda1n,
+  0xc943c1ea2d15bn,
+  0xcb5a921cd1a8n,
+  0xcca930036a8bn
 ];
 
 let commitYArr = [
-  14442359704090532n,
-  17707874727541416n,
-  16756651142489293n,
-  16878988203207987n,
-  862219317862869n,
+  0x37bc3c59dc91b4n,
+  0x3b96f131882f9bn,
+  0x362d8973c34259n,
+  0x3b0a2cb1a5c883n,
+  0x3da3b188cf72fn
 ];
 
-// Reset change
+// genP
 let genPXArr = [
-  1060605043002100n,
-  4477461228639901n,
-  2763747222279906n,
-  3585058338592711n,
-  79425422684188n,
+  0xe375e578f387bn,
+  0x37ab390b93634n,
+  0xc75b7dc7c511cn,
+  0xa554894a0714cn,
+  0xafc8f534900cn
 ];
 
 let genPYArr = [
-  2412286926219828n,
-  1721118809375218n,
-  2099982527710603n,
-  2101466839984108n,
-  273684248570845n,
+  0x3f36e1a8dfa08n,
+  0xc5ebd52d04835n,
+  0x9cf10483a099bn,
+  0xdc22401bf074n,
+  0x23e9f9d513een
 ];
 
 // let kArr = [17187201580510244500n, 17315889039600401204n, 16388465764006301260n,
 //     11978092259031919847n];
 
 // Reset Change
-let blind =
-  BigInt(0x4316a46171390927491975a9a1c84b721f94c58ee579b1cb80ddf620faad5201n);
-
-// Reset Change (verification)
-let lastSec = arrToScalar([
-  14699768998348354050n,
-  4798345464519037820n,
-  919498136624759321n,
-  1305565787692331194n,
-]);
+let blind = 0x5644266b1cf1aa16678d099aafb60eb04da7accf673d9af4d48939858d374fe0n;
 
 let commitX = Fn.create(arrToPoint(commitXArr));
 let commitY = Fp.create(arrToPoint(commitYArr));
 let commitPoint = new schnorr.Point(commitX, commitY, Fp.ONE);
-commitPoint.assertValidity()
+commitPoint.assertValidity();
 
 let genPX = Fn.create(arrToPoint(genPXArr));
 let genPY = Fp.create(arrToPoint(genPYArr));
 let genP = new schnorr.Point(genPX, genPY, Fp.ONE);
-genP.assertValidity()
+genP.assertValidity();
 
 // let kArrVal = arrToPoint(kArr)
 // let kVal2 = Fp.create(kArrVal);
@@ -305,6 +298,19 @@ for (let i = 0; i < NUM_RINGS; i++) {
     if (message) {
       const ENCRYPTION_CHUNK_SIZE = 32;
       for (let b = 0; b < ENCRYPTION_CHUNK_SIZE; b++) {
+        if (i == LAST_RING_INDEX && j === 0) {
+          console.log(
+            (
+              tmp[b] ^
+              message[(i * STANDRAD_RING_SIZE + j) * ENCRYPTION_CHUNK_SIZE + b]
+            ).toString(16)
+          );
+        }
+
+        if (i == LAST_RING_INDEX && j === STANDRAD_RING_SIZE - 1 && b == 10) {
+          console.log("--")
+          debugger;
+        }
         tmp[b] ^=
           message[(i * STANDRAD_RING_SIZE + j) * ENCRYPTION_CHUNK_SIZE + b];
         message[(i * STANDRAD_RING_SIZE + j) * ENCRYPTION_CHUNK_SIZE + b] =
@@ -326,7 +332,7 @@ let k: any[] = [];
 for (let i = 0; i < NUM_RINGS; i++) {
   secidx[i] = Number(valueBigint >> BigInt(i * 2)) & 3;
   k.push(sigs[i][secidx[i]]);
-  sigs[i][secidx[i]] = Buffer.from(Array(32).fill(0)) as Uint8Array
+  sigs[i][secidx[i]] = Buffer.from(Array(32).fill(0)) as Uint8Array;
 }
 
 //K SHOULD BE CORRECT NOW
@@ -342,22 +348,9 @@ console.log("imp:", Fp.create(sumOfBlindAndLastPartialBlind));
 // no
 sec[sec.length - 1] = Fn.toBytes(Fp.create(sumOfBlindAndLastPartialBlind));
 
-// MANUAL SANITY CHECK OF LAST SEC
-let referenceVal = Fp.create(
-  arrToScalar([
-    11110420799828144786n,
-    14663785730342659736n,
-    12400238745281221254n,
-    5394212676807708690n,
-  ])
-);
-
 // console.log(Buffer.from(referenceVal).toString("hex"))
 
 /*Blind is confirmed. To check I convert one of the scalar values to hex and make sure it's a substring of the serialized hex for sec[sec.length - 1]*/
-
-let sumPoint =
-  lift_x(0x0b1fb6a89cdb65cacbf28c7ba07f4a2fffede1c1e1315795c78ff96c594faen);
 
 // TODO: Allocate NUM_RINGS spaces for sings in proof
 
@@ -378,9 +371,6 @@ for (let i = 0; i < NUM_RINGS; i++) {
   //lift_x(Fn.fromBytes(secp256k1.utils.randomSecretKey()));
   // let C = H.multiply(Fn.fromBytes(value)).add(G.multiply(Fn.fromBytes(signerPrivateKey)))
   // console.log(i)
-  if (i == 6) {
-    console.log();
-  }
 
   let vPWithbG = bG.add(vP);
   //TODO: Write 'quadness' to reserved space in proof
@@ -389,32 +379,31 @@ for (let i = 0; i < NUM_RINGS; i++) {
 
 // These are the same, its just that the sumPoint has weird padding for hex chars and has a 0 stuck in there somewhere
 console.log(Buffer.from(pubs[0][0].toBytes()).toString("hex"));
-console.log(sumPoint.toHex());
 
-let negativeCorrectGenP = genP.negate();
+let negativeGenP = genP.negate();
 //secp256k1_rangeproof_pub_expand
 for (let i = 0; i < NUM_RINGS; i++) {
   for (let j = 1; j < STANDRAD_RING_SIZE; j++) {
-    pubs[i].push((pubs[i][j - 1] as any).add(negativeCorrectGenP));
+    pubs[i].push((pubs[i][j - 1] as any).add(negativeGenP));
   }
-  negativeCorrectGenP = negativeCorrectGenP.multiply(4n);
+  negativeGenP = negativeGenP.multiply(4n);
 }
 
 console.log();
 
 //Reset
 let messageForSignature = Buffer.from(
-  "b48b73814648aadb73a5d90937ba38ea408ccc1e6fc220c3a8899df8eb6da563",
+  "c42c2725c7b9d3184cafc6da719bae4834ed28ede84f1aa6d619ff3605bbd60f",
   "hex"
 );
 
 //TODO: Look at that special logic using '-=' when setting prep
 
 // Revisit why last sig was wrong
-// was 62bd36f29749b407e2531c0e54de2ee3486b1cae01c6166ca45c845e810d17d9, expected e2bd36f29749b407e2531c0e54de2ee3486b1cae01c6166ca45c845e810d17d9 
+// was 62bd36f29749b407e2531c0e54de2ee3486b1cae01c6166ca45c845e810d17d9, expected e2bd36f29749b407e2531c0e54de2ee3486b1cae01c6166ca45c845e810d17d9
 //TODO: Figure out what's wrong here
 //Reset (doesnt need reset but I'm putting it here to draw attention)
-sigs[NUM_RINGS - 1][3] = Buffer.from(0xe2bd36f29749b407e2531c0e54de2ee3486b1cae01c6166ca45c845e810d17d9n.toString(16), "hex") as Uint8Array;
+// sigs[NUM_RINGS - 1][3] = Buffer.from(0xe2bd36f29749b407e2531c0e54de2ee3486b1cae01c6166ca45c845e810d17d9n.toString(16), "hex") as Uint8Array;
 
 console.log("sec: " + Buffer.from(sec[LAST_RING_INDEX]).toString("hex"));
 secp256k1_borromean_sign(
@@ -427,6 +416,7 @@ secp256k1_borromean_sign(
   messageForSignature
 );
 
+console.log();
 // Update with data (like secp256k1_rfc6979_hmac_sha256_update)
 /*
   - add nonce (32 bytes)

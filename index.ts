@@ -102,6 +102,7 @@ export function secp256k1_borromean_sign(
   let concatenatedNonces = concatBytes();
   for (let i = 0; i < nrings; i++) {
     let lastRingNonce = lastRingNonceCollection[i];
+    console.log(Buffer.from(lastRingNonce).toString('hex'))
     concatenatedNonces = concatBytes(concatenatedNonces, lastRingNonce);
   }
 
@@ -160,7 +161,7 @@ export function secp256k1_borromean_sign(
     console.log(Buffer.from(s[ringIndex][signerIndex]).toString("hex"))
   }
 }
-
+console.log()
 // //VERIFY
 // //For each ring
 // for (let ringIndex = 0; ringIndex < NUMBER_OF_RINGS; ringIndex++) {
