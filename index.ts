@@ -162,33 +162,3 @@ export function secp256k1_borromean_sign(
   }
 }
 console.log()
-// //VERIFY
-// //For each ring
-// for (let ringIndex = 0; ringIndex < NUMBER_OF_RINGS; ringIndex++) {
-//   let signatures = ringSigCollection[ringIndex];
-//   let pubkeys = ringPubkeyCollection[ringIndex];
-//   let e_i = sharedRootMessageHash;
-//   let noncePoint;
-//   for (let pubkeyIndex = 0; pubkeyIndex < signatures.length; pubkeyIndex++) {
-//     let xOnlyPubkey = pubkeys[pubkeyIndex].slice(1);
-//     let signature = Fn.fromBytes(signatures[pubkeyIndex]);
-//     let sG = G.multiply(signature);
-//     const P = lift_x(Fn.fromBytes(xOnlyPubkey));
-//     let eP = P.multiply(e_i);
-//     noncePoint = sG.add(eP);
-
-//     let messagePreimage = concatBytes(
-//       message,
-//       toBytes(noncePoint.x),
-//       new Uint8Array([ringIndex]),
-//       toBytes(BigInt(pubkeyIndex))
-//     );
-
-//     e_i = Fn.fromBytes(sha256(messagePreimage));
-//   }
-
-//   if (noncePoint.x !== Fn.fromBytes(lastRingNonceCollection[ringIndex])) {
-//     throw new Error(`Failed on ring ${ringIndex + 1}/${NUMBER_OF_RINGS}`);
-//   }
-// }
-// console.log("Validation successful");

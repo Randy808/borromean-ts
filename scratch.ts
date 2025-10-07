@@ -7,6 +7,12 @@ let arrToPoint = (arr: Array<bigint>): bigint => {
   }, 0n);
 };
 
+function secp256k1_rfc6979_hmac_sha256_finalize(rng: any) {
+  rng.k.fill(0);
+  rng.v.fill(0);
+  rng.retry = 0;
+}
+
 function jacobianArrToProjectivePoint(
   x_limbs: bigint[],
   y_limbs: bigint[],
