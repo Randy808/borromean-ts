@@ -272,7 +272,7 @@ function generateRangeProof(
     serializedGenP,
     proofHeader as Uint8Array,
     ...ringPubkeysForMessage,
-    extraCommit
+   extraCommit
   );
 
   let messageHashForSignature = sha256(messagePreimage);
@@ -282,7 +282,7 @@ function generateRangeProof(
   // y 9374c7456160001b94d77e5ce908000434cc1ef90fb7000a512852dd189200105335b77fdfe5
 
   console.log("sec: " + Buffer.from(sec[LAST_RING_INDEX]).toString("hex"));
-  let e0 = secp256k1_borromean_sign(
+  secp256k1_borromean_sign(
     sigs,
     pubs,
     k,
@@ -294,25 +294,9 @@ function generateRangeProof(
 
   console.log();
 
-  let commitmentBuffer = ringPubkeysForMessage.reduce((acc, val) => {
-    return concatBytes(acc, val.subarray(1));
-  }, new Uint8Array());
+  let finalProof = concatBytes(proofHeader as Uint8Array, signs,);
 
-  let sigBuffer = sigs.reduce((acc: any, sigArray: any) => {
-    let serializedSigArray = sigArray.reduce((acc2: any, val2: any) => {
-      return concatBytes(acc2, val2);
-    }, new Uint8Array());
-    return concatBytes(acc, serializedSigArray);
-  }, new Uint8Array());
-
-  let finalProof = concatBytes(
-    proofHeader as Uint8Array,
-    signs,
-    commitmentBuffer,
-    Fn.toBytes(e0!),
-    sigBuffer
-  );
-  console.log("\n\nProof:\n\n", Buffer.from(finalProof).toString("hex"));
+  console.log(Buffer.from(finalProof).toString("hex"))
 }
 // Update with data (like secp256k1_rfc6979_hmac_sha256_update)
 /*
@@ -433,10 +417,7 @@ try {
 let valueBigIntArg: bigint = BigInt(0x0000000005f5e0ff); //bytesToNumberBE(value);
 
 // Reset
-let extraCommitBuffer = Buffer.from(
-  "001466f05bc559d7e0d8471c703089d79e582fdd731b",
-  "hex"
-) as Uint8Array;
+let extraCommitBuffer =  Buffer.from("001466f05bc559d7e0d8471c703089d79e582fdd731b", "hex") as Uint8Array;
 
 generateRangeProof.bind(this)(
   serializedPointArg,

@@ -160,5 +160,7 @@ export function secp256k1_borromean_sign(
     s[ringIndex][signerIndex] = toBytes(Fn.create(signerSignature));
     console.log(Buffer.from(s[ringIndex][signerIndex]).toString("hex"))
   }
+  
+  return sharedRootMessageHash;
 }
 console.log()
