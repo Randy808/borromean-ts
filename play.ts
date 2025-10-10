@@ -1,11 +1,11 @@
 import { schnorr, secp256k1 } from "@noble/curves/secp256k1";
-import { bytesToNumberBE } from "@noble/curves/utils";
+import { bytesToNumberBE, numberToBytesBE } from "@noble/curves/utils";
 import { sha256 } from "@noble/hashes/sha2";
 import { concatBytes, randomBytes, toBytes } from "@noble/hashes/utils";
 import crypto from "crypto";
 
 // Reset change
-import messageBytes from "./message";
+import getMessage from "./message";
 import { secp256k1_scalar_add } from "./scalar_add";
 import { secp256k1_borromean_sign } from ".";
 import { WeierstrassPoint } from "@noble/curves/abstract/weierstrass";
@@ -114,7 +114,9 @@ function generateRangeProof(
   blind: bigint,
   nonce: bigint,
   valueB: bigint,
-  extraCommit: Uint8Array
+  extraCommit: Uint8Array,
+  assetId: string,
+  assetBlind: string
 ) {
   let pubs: CurvePoint<any, any>[][] = [];
 
@@ -128,13 +130,27 @@ function generateRangeProof(
   const rng = secp256k1_rfc6979_hmac_sha256_initialize(hmacKey);
 
   const NUM_RINGS = 26;
+  const LAST_RING_INDEX = NUM_RINGS - 1;
   const STANDRAD_RING_SIZE = 4;
 
   let sec: any[] = [];
 
-  let message = messageBytes;
+  let secidx: any[] = [];
 
-  const LAST_RING_INDEX = NUM_RINGS - 1;
+  for (let i = 0; i < NUM_RINGS; i++) {
+    secidx[i] = Number(valueB >> BigInt(i * 2)) & 3;
+  }
+
+  let valueHex = Buffer.from(numberToBytesBE(valueB, 8)).toString("hex")
+  let message = getMessage(
+    NUM_RINGS,
+    STANDRAD_RING_SIZE,
+    assetId,
+    assetBlind,
+    valueHex,
+    secidx[LAST_RING_INDEX] === STANDRAD_RING_SIZE - 1
+  );
+
   let acc = 0n;
 
   let sigs: Uint8Array[][] = [];
@@ -192,22 +208,18 @@ function generateRangeProof(
     }
   }
 
-  let secidx: any[] = [];
   let k: any[] = [];
 
   let signsBufferSize = Math.ceil(NUM_RINGS / 8);
   let signs = new Uint8Array(Array(signsBufferSize).fill(0));
 
   for (let i = 0; i < NUM_RINGS; i++) {
-    secidx[i] = Number(valueB >> BigInt(i * 2)) & 3;
     k.push(sigs[i][secidx[i]]);
     sigs[i][secidx[i]] = Buffer.from(Array(32).fill(0)) as Uint8Array;
   }
 
   let sumOfBlindAndLastPartialBlind = Fn.fromBytes(sec[sec.length - 1]) + blind;
   sec[sec.length - 1] = Fn.toBytes(Fp.create(sumOfBlindAndLastPartialBlind));
-
-  // TODO: Allocate NUM_RINGS spaces for sings in proof
 
   for (let i = 0; i < NUM_RINGS; i++) {
     // secp256k1_pedersen_ecmult(ecmult_gen_ctx, &pubs[npub], &sec[i], ((uint64_t)secidx[i] * scale) << (i*2), genp);
@@ -433,10 +445,16 @@ try {
 let valueBigIntArg: bigint = BigInt(0x0000000005f5e0ff); //bytesToNumberBE(value);
 
 // Reset
+// This is the scriptpubkey of output
 let extraCommitBuffer = Buffer.from(
   "001466f05bc559d7e0d8471c703089d79e582fdd731b",
   "hex"
 ) as Uint8Array;
+
+  const assetId =
+    "25b251070e29ca19043cf33ccd7324e2ddab03ecc4ae0b5e77c4fc0e5cf6c95a";
+  const assetBlind =
+    "f0b8dd8fa6cd62ed82ad112827eee152cba36a960c22fa981c0214806b0d7ea8";
 
 generateRangeProof.bind(this)(
   serializedPointArg,
@@ -444,5 +462,7 @@ generateRangeProof.bind(this)(
   blindArg,
   nonceArg,
   valueBigIntArg,
-  extraCommitBuffer
+  extraCommitBuffer,
+  assetId,
+  assetBlind
 );
