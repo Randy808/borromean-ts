@@ -126,6 +126,7 @@ export function secp256k1_borromean_sign(
         )
       )
 
+    console.log("\n\n\n")
     // Fill in signatures from 0 to signer's index
     for (let pubkeyIndex = 0; pubkeyIndex < signerIndex; pubkeyIndex++) {
       let pubkeys = pubs[ringIndex];
@@ -149,7 +150,7 @@ export function secp256k1_borromean_sign(
       );
 
       let r = 9
-      // console.log(e_i.toString(16))
+      console.log(e_i.toString(16))
     }
 
     // Overwrite fake signature in the signer index with a real signature from the signer

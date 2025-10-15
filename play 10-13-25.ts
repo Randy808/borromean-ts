@@ -271,9 +271,8 @@ export function generateRangeProof(
   }
 
   let sumOfBlindAndLastPartialBlind = Fn.fromBytes(sec[sec.length - 1]) + blind;
-  sec[sec.length - 1] = Buffer.from(Fn.toBytes(Fn.create(sumOfBlindAndLastPartialBlind)));
+  sec[sec.length - 1] = Fn.toBytes(Fp.create(sumOfBlindAndLastPartialBlind));
 
-  //RANDY_NEW
   for (let i = 0; i < NUM_RINGS; i++) {
     // secp256k1_pedersen_ecmult(ecmult_gen_ctx, &pubs[npub], &sec[i], ((uint64_t)secidx[i] * scale) << (i*2), genp);
     let bG = G.multiply(Fn.fromBytes(sec[i]));
@@ -286,6 +285,7 @@ export function generateRangeProof(
     if (vValue === 0n) {
       C = bG;
     } else {
+      // TODO: Make sure we take in whole value for genP so we can pick correct quadness/parity
       let vP = genP.multiply(Fn.create(vValue));
       C = bG.add(vP);
     }
@@ -379,7 +379,7 @@ export function generateRangeProof(
     //846
     sigBuffer // 3328
   );
-  console.log("\n\nProof:\n\n", Buffer.from(finalProof).toString("hex"));
+  // console.log("\n\nProof:\n\n", Buffer.from(finalProof).toString("hex"));
 
   return finalProof;
 }
@@ -423,43 +423,43 @@ message hash needs
 
 // Reset change
 let nonceArg =
-  0x5e9327655ce0ee21dc4f7ec1cbdcc5e393973e4d2a407b01a69068e94bde90a1n;
+  0xc5fa60ee454f208a379662fb31302d3caefc72d40919ed4ab58b511e57f2d40an;
 
 // Reset change
 // commit
 // commit
 // commit
 let commitXArr = [
-  1572034863924652n,
-  855152059326233n,
-  975457184466495n,
-  408441583636078n,
-  8718917558778n,
+  1714103949332285n,
+  879411113475107n,
+  2963786728296436n,
+  3815466249912002n,
+  228220164417948n,
 ];
 
 let commitYArr = [
-  14660813141304632n,
-  16813475458067060n,
-  13520591078439290n,
-  16854752544074295n,
-  1052500369865187n,
+  16764925268671686n,
+  14310197772141882n,
+  14836082064650123n,
+  17142388246015281n,
+  962893588244796n,
 ];
 
 // genP
 let genPXArr = [
-  3698275472572113n,
-  960805623148293n,
-  1361606309141106n,
-  2269370551941167n,
-  95069322382348n,
+  1023526409959635n,
+  783448678690483n,
+  3394567772643830n,
+  656772673364555n,
+  43733853461695n,
 ];
 
 let genPYArr = [
-  90476339017378n,
-  3910324583965771n,
-  966802187916966n,
-  1105471236702902n,
-  117776083589745n,
+  1097129820796756n,
+  121470784712267n,
+  2529254140013483n,
+  4077288318088986n,
+  164250798402776n,
 ];
 
 // let kArr = [17187201580510244500n, 17315889039600401204n, 16388465764006301260n,
@@ -467,7 +467,7 @@ let genPYArr = [
 
 // Reset Change
 let blindArg =
-  0xab8b1b80a73864094b435de7ee3a1f52ffea6957fb4bdc2d7b3b9f22eb2a5e35n;
+  0x2ab2e5c830353a0d2d4e87e17f40b7e11bcc543c9a64d1e22f8af5b27977ef39n;
 
 let commitX = Fn.create(arrToPoint(commitXArr));
 let commitY = Fp.create(arrToPoint(commitYArr));
@@ -504,18 +504,18 @@ let valueBigIntArg: bigint = BigInt(0x0000000005f5e0ff); //bytesToNumberBE(value
 // Reset
 // This is the scriptpubkey of output
 let extraCommitBuffer = Buffer.from(
-  "0014fd27b2a4f9c9ea6c6a1bafdd1a3d1615d3fbd47d",
+  "001466f05bc559d7e0d8471c703089d79e582fdd731b",
   "hex"
 ) as Uint8Array;
 
 const assetId =
   "25b251070e29ca19043cf33ccd7324e2ddab03ecc4ae0b5e77c4fc0e5cf6c95a";
 const assetBlind =
-  "0a4fc39109a3899d425eed8911f158c665f9e7bec05f20af760bde0fe776a381";
+  "f0b8dd8fa6cd62ed82ad112827eee152cba36a960c22fa981c0214806b0d7ea8";
 
-// let nonce2 = 0x0n;
-// let serializedPoint2 = 0;
-// let serializedGenP2 = 0;
+let nonce2 = 0x0n;
+let serializedPoint2 = 0;
+let serializedGenP2 = 0;
 
 // let decryptionKeys = genrand(
 //     nonce2,

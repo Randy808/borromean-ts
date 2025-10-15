@@ -70,11 +70,6 @@ export function signPartOne(
   let currentMessageHash = signerNoncePoint;
   let noncePoint: CurvePoint<any, any> | undefined;
 
-
-  if(ringIndex === 25) {
-    debugger;
-  }
-
   //For every index after the signer's
   for (let j = signerIndex + 1; j < pubkeys.length; j++) {
     let currentMessagePreimage = concatBytes(

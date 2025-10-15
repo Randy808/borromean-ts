@@ -8,6 +8,7 @@ function getMessage(
 ) {
   // const assetId =
   //   "25b251070e29ca19043cf33ccd7324e2ddab03ecc4ae0b5e77c4fc0e5cf6c95a";
+  // reversed is 5ac9f65c0efcc4775e0baec4ec03abdde22473cd3cf33c0419ca290e0751b225
   // const assetBlinder =
   //   "f0b8dd8fa6cd62ed82ad112827eee152cba36a960c22fa981c0214806b0d7ea8";
 
@@ -27,7 +28,9 @@ function getMessage(
 
   let bufferIndexOfWhereToWriteValue = lastRingPositionInSignatureBuffer + 8;
 
-  let numberOfZeros = bufferIndexOfWhereToWriteValue - sizeOfAssetInfo;
+  // will equal 3240 unless signer index for last ring is defined as last
+  // this is impossible when sending smaller amounts.
+  let numberOfZeros = bufferIndexOfWhereToWriteValue - sizeOfAssetInfo; 
 
   let zeros = new Array(numberOfZeros).fill(0).reduce((acc: Buffer, n) => {
     return Buffer.from([...acc, n]);
@@ -36,9 +39,9 @@ function getMessage(
   // 3 of these is 32 bytes since value is represented with 8 bytes
   // let valueHex = "0000000005f5e0ff";
   let hex =
-    assetId +
-    assetBlinder +
-    zeros.toString("hex") +
+    assetId + // 32
+    assetBlinder + // 32
+    zeros.toString("hex") + // 3240
     valueHex +
     valueHex +
     valueHex;

@@ -10,6 +10,7 @@
   "description": "",
   "dependencies": {
     "@noble/curves": "^1.9.7",
-    "@noble/hashes": "^1.8.0"
+    "@noble/hashes": "^1.8.0",
+    "liquidjs-lib": "^6.0.2-liquid.23"
   }
 }
