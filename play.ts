@@ -169,7 +169,7 @@ proofHeader[9] = 0x01;
 export function generateRangeProof(
   serializedPoint: Uint8Array,
   serializedGenP: Uint8Array,
-  blind: bigint,
+  ephemeralOutputBlind: bigint,
   nonce: bigint,
   valueB: bigint,
   extraCommit: Uint8Array,
@@ -270,7 +270,7 @@ export function generateRangeProof(
     sigs[i][secidx[i]] = Buffer.from(Array(32).fill(0)) as Uint8Array;
   }
 
-  let sumOfBlindAndLastPartialBlind = Fn.fromBytes(sec[sec.length - 1]) + blind;
+  let sumOfBlindAndLastPartialBlind = Fn.fromBytes(sec[sec.length - 1]) + ephemeralOutputBlind;
   sec[sec.length - 1] = Buffer.from(Fn.toBytes(Fn.create(sumOfBlindAndLastPartialBlind)));
 
   //RANDY_NEW
@@ -466,7 +466,7 @@ let genPYArr = [
 //     11978092259031919847n];
 
 // Reset Change
-let blindArg =
+let ephemeralOutputBlindArg =
   0xab8b1b80a73864094b435de7ee3a1f52ffea6957fb4bdc2d7b3b9f22eb2a5e35n;
 
 let commitX = Fn.create(arrToPoint(commitXArr));
@@ -527,7 +527,7 @@ const assetBlind =
 // generateRangeProof.bind(this)(
 //   serializedPointArg,
 //   serializedGenPArg,
-//   blindArg,
+//   ephemeralOutputBlindArg,
 //   nonceArg,
 //   valueBigIntArg,
 //   extraCommitBuffer,
