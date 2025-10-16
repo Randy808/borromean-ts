@@ -6,12 +6,14 @@ import { generateRangeProof, genrand, getQuadness } from "./play";
 import { txhex1, txhex2 } from "./txhex";
 import { txhex3 } from "./txhex3";
 import { txhex4 } from "./txhex4";
+import { invert } from "@noble/curves/abstract/modular";
+import { generateRangeProof2 } from "./play-rewind";
 
 function copyBytes(b: Buffer) {
   return Buffer.from(b.toString("hex"), "hex");
 }
 
-let t = liquid.Transaction.fromHex(txhex4);
+let t = liquid.Transaction.fromHex(txhex3);
 
 const index = 1;
 
@@ -41,7 +43,7 @@ function convertParityByteToQuadness(bytes: Uint8Array) {
 }
 
 let blindingKey =
-  0x873ef89f7a58ffadb729f1758800b62ab26f898821993f317352eeec284471f6n;
+  0xabf582994e1518e46672669d44af3a522fd3c880e094f06fc12a7228549adab4n;
 let nonceCommitment = t.outs[index].nonce.toString("hex");
 
 // let blinding = Fn.create(blindingKey)
@@ -143,9 +145,7 @@ let assetBlind = decryptedByteValuesBuffer.subarray(32, 64).toString("hex");
 // Because blind for output is diff from blinding key
 // We need a specific blind value so that the sum of blinds equals sum of everything else (both blind and unblind)
 let bx =
-  Fn.create(
     0xab8b1b80a73864094b435de7ee3a1f52ffea6957fb4bdc2d7b3b9f22eb2a5e35n
-  );
 // let by =
 //   Fp.create(
 //     0xab8b1b80a73864094b435de7ee3a1f52ffea6957fb4bdc2d7b3b9f22eb2a5e35n
@@ -159,16 +159,27 @@ let bx =
     secidx[i] = Number(valueBigIntArg >> BigInt(i * 2)) & 3;
   }
 
-let lastCommitment = commitments.subarray(
-  commitments.length - 32,
-  commitments.length
-);
+
+// let lastCommitment = commitments.subarray(
+//   commitments.length - 32,
+//   commitments.length
+// );
 
 //valueBigIntArg
 
 //decryptedByteValuesBuffer.subarray(14, 814)
 //decryptedByteValuesBuffer.subarray(14, 814).subarray(0, 32)
-let rangeProof = generateRangeProof(
+// let {finalProof: rangeProof, k, es, sec} = generateRangeProof(
+//   serializedPoint,
+//   serializedGenP,
+//   nonce,
+//   valueBigIntArg,
+//   extraCommitBuffer,
+//   assetIdHex,
+//   assetBlind
+// );
+
+let {finalProof: rangeProof} = generateRangeProof(
   serializedPoint,
   serializedGenP,
   bx,
@@ -178,6 +189,46 @@ let rangeProof = generateRangeProof(
   assetIdHex,
   assetBlind
 );
+
+
+let { k, es, sec} = generateRangeProof2(
+  serializedPoint,
+  serializedGenP,
+  nonce,
+  valueBigIntArg,
+  extraCommitBuffer,
+  assetIdHex,
+  assetBlind
+);
+
+
+  /*
+    (k - s)/e = sec
+
+    s - k/-e = sec
+
+    s - k = -e*sec
+    - s + k = e*sec
+    -s = e*sec - k
+
+
+
+  */
+
+
+    const lastRing = 25;
+    let ind = secidx[lastRing]
+    let realSigForLastRing = signatures.subarray(
+      lastRing*4*32 + ind*32,
+      lastRing*4*32 + ind*32 + 32
+    );
+
+    let e_i_inverse: bigint = invert(es[lastRing], Fn.ORDER)
+    let base: bigint = Fn.create(Fn.create(Fn.fromBytes(k[lastRing]) - Fn.fromBytes(realSigForLastRing)) * e_i_inverse)
+    let gg = Fn.create(base - Fn.fromBytes(sec[lastRing]));
+    let maybeBlind = Fn.toBytes(gg)
+    //Buffer.from(utils_1.Fp.toBytes(gg)).toString("hex")
+ 
 
 //t.outs[index].rangeProof!.subarray(846)
 t.outs[index].rangeProof! = Buffer.from(rangeProof);

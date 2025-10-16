@@ -166,10 +166,9 @@ proofHeader[0] = 0x60;
 proofHeader[1] = 0x33;
 proofHeader[9] = 0x01;
 
-export function generateRangeProof(
+export function generateRangeProof2(
   serializedPoint: Uint8Array,
   serializedGenP: Uint8Array,
-  ephemeralOutputBlind: bigint,
   nonce: bigint,
   valueB: bigint,
   extraCommit: Uint8Array,
@@ -238,6 +237,16 @@ export function generateRangeProof(
       if (message) {
         const ENCRYPTION_CHUNK_SIZE = 32;
         for (let b = 0; b < ENCRYPTION_CHUNK_SIZE; b++) {
+          if (i == LAST_RING_INDEX && j === 0) {
+            console.log(
+              (
+                tmp[b] ^
+                message[
+                  (i * STANDRAD_RING_SIZE + j) * ENCRYPTION_CHUNK_SIZE + b
+                ]
+              ).toString(16)
+            );
+          }
 
           tmp[b] ^=
             message[(i * STANDRAD_RING_SIZE + j) * ENCRYPTION_CHUNK_SIZE + b];
@@ -250,7 +259,7 @@ export function generateRangeProof(
     }
   }
 
-  let k: any[] = [];
+  let k: Uint8Array[] = [];
 
   let signsBufferSize = Math.ceil(NUM_RINGS / 8);
   let signs = new Uint8Array(Array(signsBufferSize).fill(0));
@@ -260,8 +269,8 @@ export function generateRangeProof(
     sigs[i][secidx[i]] = Buffer.from(Array(32).fill(0)) as Uint8Array;
   }
 
-  let sumOfBlindAndLastPartialBlind = Fn.fromBytes(sec[sec.length - 1]) + ephemeralOutputBlind;
-  sec[sec.length - 1] = Buffer.from(Fn.toBytes(Fn.create(sumOfBlindAndLastPartialBlind)));
+  // let sumOfBlindAndLastPartialBlind = Fn.fromBytes(sec[sec.length - 1]) + ephemeralOutputBlind;
+  // sec[sec.length - 1] = Buffer.from(Fn.toBytes(Fn.create(sumOfBlindAndLastPartialBlind)));
 
   //RANDY_NEW
   for (let i = 0; i < NUM_RINGS; i++) {
@@ -338,14 +347,15 @@ export function generateRangeProof(
   // y 9374c7456160001b94d77e5ce908000434cc1ef90fb7000a512852dd189200105335b77fdfe5
 
   console.log("sec: " + Buffer.from(sec[LAST_RING_INDEX]).toString("hex"));
-  let {sharedRootMessageHash: e0} = secp256k1_borromean_sign(
+  let {sharedRootMessageHash: e0, es} = secp256k1_borromean_sign(
     sigs,
     pubs,
     k,
     sec,
     secidx,
     NUM_RINGS,
-    messageHashForSignature
+    messageHashForSignature,
+    true
   );
 
   console.log();
@@ -371,7 +381,7 @@ export function generateRangeProof(
   );
   console.log("\n\nProof:\n\n", Buffer.from(finalProof).toString("hex"));
 
-  return {finalProof};
+  return {finalProof, k, es, sec};
 }
 // Update with data (like secp256k1_rfc6979_hmac_sha256_update)
 /*

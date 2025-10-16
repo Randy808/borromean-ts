@@ -1,6 +1,11 @@
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 
-import { asciiToBytes, concatBytes, numberToBytesBE, randomBytes } from "@noble/curves/utils.js";
+import {
+  asciiToBytes,
+  concatBytes,
+  numberToBytesBE,
+  randomBytes,
+} from "@noble/curves/utils.js";
 import { sha256 } from "@noble/hashes/sha2";
 import {
   G,
@@ -12,6 +17,7 @@ import {
   signPartOne as signFirstRoundForRing,
   generatePublicKeysForRing,
   lift_x,
+  invert2
 } from "./utils";
 import { WeierstrassPoint } from "@noble/curves/abstract/weierstrass";
 import { CurvePoint } from "@noble/curves/abstract/curve";
@@ -21,6 +27,7 @@ import { CurvePoint } from "@noble/curves/abstract/curve";
 //   .map(() =>
 //     generatePublicKeysForRing(RING_SIZE, signerIndex, signerPublicKey)
 //   );
+let es: any[] = [];
 
 function getArrayWithRandomByteValues(size: number): Uint8Array[] {
   return Array(size)
@@ -75,7 +82,8 @@ export function secp256k1_borromean_sign(
   sec: Uint8Array[],
   secidx: number[],
   nrings: number,
-  m: any
+  m: any,
+  skipSig: boolean = false
 ) {
   const lastRingNonceCollection: Uint8Array[] = [];
 
@@ -102,13 +110,13 @@ export function secp256k1_borromean_sign(
   let concatenatedNonces = concatBytes();
   for (let i = 0; i < nrings; i++) {
     let lastRingNonce = lastRingNonceCollection[i];
-    console.log(Buffer.from(lastRingNonce).toString('hex'))
+    // console.log(Buffer.from(lastRingNonce).toString("hex"));
     concatenatedNonces = concatBytes(concatenatedNonces, lastRingNonce);
   }
 
   concatenatedNonces = concatBytes(concatenatedNonces, m);
 
-  let xx = sha256(concatenatedNonces)
+  let xx = sha256(concatenatedNonces);
   let sharedRootMessageHash = Fn.fromBytes(sha256(concatenatedNonces));
   //correct hash should be: 1a4a550fee295a980018512f7fa9129db8e7bddd4eece99b7c2be41617bea1fa
 
@@ -116,17 +124,17 @@ export function secp256k1_borromean_sign(
     let signerIndex = secidx[ringIndex];
 
     let e_i = Fn.fromBytes(
-        sha256(
-          concatBytes(
-            toBytes(sharedRootMessageHash),
-            m,
-            numberToBytesBE(ringIndex, 4),
-            numberToBytesBE(0, 4)
-          )
+      sha256(
+        concatBytes(
+          toBytes(sharedRootMessageHash),
+          m,
+          numberToBytesBE(ringIndex, 4),
+          numberToBytesBE(0, 4)
         )
       )
+    );
 
-    console.log("\n\n\n")
+    console.log("\n\n\n");
     // Fill in signatures from 0 to signer's index
     for (let pubkeyIndex = 0; pubkeyIndex < signerIndex; pubkeyIndex++) {
       let pubkeys = pubs[ringIndex];
@@ -148,18 +156,33 @@ export function secp256k1_borromean_sign(
           )
         )
       );
-
     }
+
+    // console.log(e_i);
+    es.push(e_i);
+
+    /* sig/sec[ringIndex]
+    s = k - e*sec
+   (s - k)/-e = sec
+   (k - s)/e = sec
+    */
 
     // Overwrite fake signature in the signer index with a real signature from the signer
     // Fn for private key
-    let signerSignature =
-      Fp.fromBytes(k[ringIndex]) -
-      Fp.create(e_i) * Fn.fromBytes(sec[ringIndex]);
-    s[ringIndex][signerIndex] = toBytes(Fn.create(signerSignature));
-    console.log(Buffer.from(s[ringIndex][signerIndex]).toString("hex"))
+
+    if (!skipSig) {
+      if (ringIndex === 25 || ringIndex === 1) {
+        debugger;
+      }
+
+      let signerSignature =
+        Fp.fromBytes(k[ringIndex]) -
+        Fp.create(e_i) * Fn.fromBytes(sec[ringIndex]);
+      s[ringIndex][signerIndex] = toBytes(Fn.create(signerSignature));
+      console.log(Buffer.from(s[ringIndex][signerIndex]).toString("hex"));
+    }
   }
-  
-  return sharedRootMessageHash;
+
+  return { sharedRootMessageHash, es };
 }
-console.log()
+console.log();

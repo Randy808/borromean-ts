@@ -1,4 +1,5 @@
 import { CurvePoint } from "@noble/curves/abstract/curve";
+import { invert } from "@noble/curves/abstract/modular";
 import { WeierstrassPoint } from "@noble/curves/abstract/weierstrass";
 import { schnorr, secp256k1 } from "@noble/curves/secp256k1";
 import { bytesToNumberBE, numberToBytesBE } from "@noble/curves/utils";
@@ -12,6 +13,7 @@ export const Fp = secp256k1.Point.Fp;
 export const { lift_x } = schnorr.utils;
 export const G = secp256k1.Point.BASE;
 export const num = bytesToNumberBE;
+export const invert2 = invert;
 
 export function generatePublicKeySignature(
   P: CurvePoint<any, any>,
