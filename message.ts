@@ -40,7 +40,7 @@ function getMessage(
 
   let bufferIndexOfWhereToWriteValue = lastRingPositionInSignatureBuffer + 8;
 
-  let embeddedMessage = stringToHex("");
+  let embeddedMessage = stringToHex("hello world");
 
   // will equal 3240 unless signer index for last ring is defined as last
   // this is impossible when sending smaller amounts.

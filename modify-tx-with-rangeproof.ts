@@ -14,7 +14,7 @@ function copyBytes(b: Buffer) {
   return Buffer.from(b.toString("hex"), "hex");
 }
 
-let t = liquid.Transaction.fromHex(txhex3);
+let t = liquid.Transaction.fromHex(txhex5);
 
 //reset
 const index = 1;
@@ -45,9 +45,9 @@ function convertParityByteToQuadness(bytes: Uint8Array) {
 }
 
 //el1qqwm6xvtm5467pw5xx6yqm4nl0rjhh3etaq0dhy8det0ufvfg607payculjrnyujv8h2nzmpw26vamg2zkre8yq8xqv0ez3yp8
-//let blindingKey =
-//  0x16d0a5cf8a1d8e9c242345a8f036fcc91cb231c043296a845e774ca4dd2bb2ecn;
-let blindingKey = 0xabf582994e1518e46672669d44af3a522fd3c880e094f06fc12a7228549adab4n
+let blindingKey =
+  0x16d0a5cf8a1d8e9c242345a8f036fcc91cb231c043296a845e774ca4dd2bb2ecn;
+// let blindingKey = 0xabf582994e1518e46672669d44af3a522fd3c880e094f06fc12a7228549adab4n
 let nonceCommitment = t.outs[index].nonce.toString("hex");
 
 // let blinding = Fn.create(blindingKey)
@@ -64,12 +64,10 @@ let nonce = BigInt(
 let serializedPoint = copyBytes(t.outs[index].value);
 convertParityByteToQuadness(serializedPoint);
 
-
 let serializedGenP = copyBytes(t.outs[index].asset);
 convertParityByteToQuadness(serializedGenP);
 // serializedPoint[0] = 1;
 // serializedGenP[0] = 0;
-
 
 let genP = lift_x(Fn.fromBytes(serializedGenP.subarray(1)));
 
@@ -94,9 +92,8 @@ let genPX = Fn.create(arrToPoint(genPXArr));
 let genPY = Fp.create(arrToPoint(genPYArr));
 let genP2 = new schnorr.Point(genPX, genPY, Fp.ONE);
 
-
-if(getQuadness(genP) != serializedGenP[0]) {
-  genP = genP.negate()
+if (getQuadness(genP) != serializedGenP[0]) {
+  genP = genP.negate();
 }
 
 let decryptionKeys = genrand(
@@ -221,7 +218,7 @@ let C = G.multiply(Fn.fromBytes(secondToLastCommitment));
 let parsedCommitments: any[] = [];
 
 for (let i = 0; i < 26; i++) {
-  parsedCommitments.push(commitments.subarray(i*32, i*32 + 32));
+  parsedCommitments.push(commitments.subarray(i * 32, i * 32 + 32));
 }
 
 // let lastCommitment = commitments.subarray(
@@ -265,7 +262,8 @@ let realSigForLastRing = signatures.subarray(
   lastRing * 4 * 32 + ind * 32 + 32
 );
 
-let ss = 88095228211852605318268035576450732754294607372745903720937769387000122991356n;
+let ss =
+  88095228211852605318268035576450732754294607372745903720937769387000122991356n;
 //this is incorrect without last pubkey
 let e_i_inverse: bigint = invert(es[es.length - 1], Fn.ORDER);
 let base: bigint = Fn.create(
@@ -276,8 +274,7 @@ let maybeBlind = Fn.create(base - Fn.fromBytes(sec[lastRing]));
 //Buffer.from(utils_1.Fp.toBytes(gg)).toString("hex")
 //Buffer.from(maybeBlind).toString("hex")
 
-
-let {finalProof: rangeProof} = generateRangeProof(
+let { finalProof: rangeProof } = generateRangeProof(
   serializedPoint,
   serializedGenP,
   maybeBlind,
