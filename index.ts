@@ -170,9 +170,9 @@ export function secp256k1_borromean_sign(
     // Overwrite fake signature in the signer index with a real signature from the signer
     // Fn for private key
 
-    if (ringIndex === 25 || ringIndex === 1) {
-        debugger;
-      }
+    // if (ringIndex === 25 || ringIndex === 1) {
+    //     debugger;
+    //   }
     if (!skipSig) {
 
       let signerSignature =

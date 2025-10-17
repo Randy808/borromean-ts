@@ -8,6 +8,7 @@ import { txhex3 } from "./txhex3";
 import { txhex4 } from "./txhex4";
 import { invert } from "@noble/curves/abstract/modular";
 import { generateRangeProof2 } from "./play-rewind";
+import { txhex5 } from "./txhex5";
 
 function copyBytes(b: Buffer) {
   return Buffer.from(b.toString("hex"), "hex");
@@ -15,6 +16,7 @@ function copyBytes(b: Buffer) {
 
 let t = liquid.Transaction.fromHex(txhex3);
 
+//reset
 const index = 1;
 
 // Subtracting commt to make pubkeys isnt working?
@@ -42,8 +44,10 @@ function convertParityByteToQuadness(bytes: Uint8Array) {
   return (bytes[0] %= 2);
 }
 
-let blindingKey =
-  0xabf582994e1518e46672669d44af3a522fd3c880e094f06fc12a7228549adab4n;
+//el1qqwm6xvtm5467pw5xx6yqm4nl0rjhh3etaq0dhy8det0ufvfg607payculjrnyujv8h2nzmpw26vamg2zkre8yq8xqv0ez3yp8
+//let blindingKey =
+//  0x16d0a5cf8a1d8e9c242345a8f036fcc91cb231c043296a845e774ca4dd2bb2ecn;
+let blindingKey = 0xabf582994e1518e46672669d44af3a522fd3c880e094f06fc12a7228549adab4n
 let nonceCommitment = t.outs[index].nonce.toString("hex");
 
 // let blinding = Fn.create(blindingKey)
@@ -60,8 +64,18 @@ let nonce = BigInt(
 let serializedPoint = copyBytes(t.outs[index].value);
 convertParityByteToQuadness(serializedPoint);
 
+
 let serializedGenP = copyBytes(t.outs[index].asset);
 convertParityByteToQuadness(serializedGenP);
+// serializedPoint[0] = 1;
+// serializedGenP[0] = 0;
+
+
+let genP = G.multiply(Fn.fromBytes(serializedGenP.subarray(1)));
+
+if(getQuadness(genP) != serializedGenP[0]) {
+  genP = genP.negate()
+}
 
 let decryptionKeys = genrand(
   nonce,
@@ -80,7 +94,7 @@ let commitments = Buffer.from(
   "hex"
 );
 
-let e_i = Buffer.from(
+let sharedRootMessageHash = Buffer.from(
   t.outs[index].rangeProof!.subarray(814, 814 + 32).toString("hex"),
   "hex"
 );
@@ -175,9 +189,6 @@ let vValue0 = BigInt(
 let C = G.multiply(Fn.fromBytes(secondToLastCommitment));
 
 // C is just bG because sec[24] is 0 with 1 btc
-let genP = secp256k1.Point.fromHex(
-  "02" + serializedGenP.subarray(1).toString("hex")
-);
 // let negValPoint = genP.multiply(Fn.create(vValue0)).negate()
 // let baseC = C.add(negValPoint)
 
@@ -200,7 +211,6 @@ for (let i = 0; i < 26; i++) {
 
 //decryptedByteValuesBuffer.subarray(14, 814)
 //decryptedByteValuesBuffer.subarray(14, 814).subarray(0, 32)
-let sharedRootMessageHash;
 let { k, es, sec } = generateRangeProof2(
   serializedPoint,
   serializedGenP,
@@ -209,7 +219,7 @@ let { k, es, sec } = generateRangeProof2(
   extraCommitBuffer,
   assetIdHex,
   assetBlind,
-  e_i
+  sharedRootMessageHash,
 );
 
 /*
@@ -252,7 +262,7 @@ let {finalProof: rangeProof} = generateRangeProof(
   valueBigIntArg,
   extraCommitBuffer,
   assetIdHex,
-  assetBlind
+  assetBlind,
 );
 
 console.log();

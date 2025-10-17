@@ -369,7 +369,7 @@ export function generateRangeProof(
     //846
     sigBuffer // 3328
   );
-  console.log("\n\nProof:\n\n", Buffer.from(finalProof).toString("hex"));
+  // console.log("\n\nProof:\n\n", Buffer.from(finalProof).toString("hex"));
 
   return {finalProof};
 }

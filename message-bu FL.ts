@@ -1,4 +1,4 @@
-function stringToHex(str: string) {
+function stringToHexBytes(str: string) {
   let hexBytes: string[] = [];
   for (let i = 0; i < str.length; i++) {
     // Get the character code (ASCII/Unicode value)
@@ -40,11 +40,11 @@ function getMessage(
 
   let bufferIndexOfWhereToWriteValue = lastRingPositionInSignatureBuffer + 8;
 
-  let embeddedMessage = stringToHex("");
+  let embeddedMessage = stringToHexBytes("hello world");
 
   // will equal 3240 unless signer index for last ring is defined as last
   // this is impossible when sending smaller amounts.
-  let numberOfZeros = bufferIndexOfWhereToWriteValue - sizeOfAssetInfo - embeddedMessage.length/2; 
+  let numberOfZeros = bufferIndexOfWhereToWriteValue - sizeOfAssetInfo - embeddedMessage.length; 
 
   
 
