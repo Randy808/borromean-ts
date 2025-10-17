@@ -174,7 +174,8 @@ export function generateRangeProof(
   valueB: bigint,
   extraCommit: Uint8Array,
   assetId: string,
-  assetBlind: string
+  assetBlind: string,
+  genP: any
 ) {
   let pubs: CurvePoint<any, any>[][] = [];
 
@@ -238,7 +239,6 @@ export function generateRangeProof(
       if (message) {
         const ENCRYPTION_CHUNK_SIZE = 32;
         for (let b = 0; b < ENCRYPTION_CHUNK_SIZE; b++) {
-
           tmp[b] ^=
             message[(i * STANDRAD_RING_SIZE + j) * ENCRYPTION_CHUNK_SIZE + b];
           message[(i * STANDRAD_RING_SIZE + j) * ENCRYPTION_CHUNK_SIZE + b] =
@@ -260,8 +260,11 @@ export function generateRangeProof(
     sigs[i][secidx[i]] = Buffer.from(Array(32).fill(0)) as Uint8Array;
   }
 
-  let sumOfBlindAndLastPartialBlind = Fn.fromBytes(sec[sec.length - 1]) + ephemeralOutputBlind;
-  sec[sec.length - 1] = Buffer.from(Fn.toBytes(Fn.create(sumOfBlindAndLastPartialBlind)));
+  let sumOfBlindAndLastPartialBlind =
+    Fn.fromBytes(sec[sec.length - 1]) + ephemeralOutputBlind;
+  sec[sec.length - 1] = Buffer.from(
+    Fn.toBytes(Fn.create(sumOfBlindAndLastPartialBlind))
+  );
 
   //RANDY_NEW
   for (let i = 0; i < NUM_RINGS; i++) {
@@ -338,14 +341,14 @@ export function generateRangeProof(
   // y 9374c7456160001b94d77e5ce908000434cc1ef90fb7000a512852dd189200105335b77fdfe5
 
   console.log("sec: " + Buffer.from(sec[LAST_RING_INDEX]).toString("hex"));
-  let {sharedRootMessageHash: e0} = secp256k1_borromean_sign(
+  let { sharedRootMessageHash: e0 } = secp256k1_borromean_sign(
     sigs,
     pubs,
     k,
     sec,
     secidx,
     NUM_RINGS,
-    messageHashForSignature,
+    messageHashForSignature
   );
 
   console.log();
@@ -371,7 +374,7 @@ export function generateRangeProof(
   );
   // console.log("\n\nProof:\n\n", Buffer.from(finalProof).toString("hex"));
 
-  return {finalProof};
+  return { finalProof };
 }
 // Update with data (like secp256k1_rfc6979_hmac_sha256_update)
 /*
@@ -410,117 +413,4 @@ message hash needs
   3) Get nonce by multiplying ephemeral key ((nonce_commitment.vchCommitment) with our priv key 
 
   */
-
-// Reset change
-let nonceArg =
-  0x5e9327655ce0ee21dc4f7ec1cbdcc5e393973e4d2a407b01a69068e94bde90a1n;
-
-// Reset change
-// commit
-// commit
-// commit
-let commitXArr = [
-  1572034863924652n,
-  855152059326233n,
-  975457184466495n,
-  408441583636078n,
-  8718917558778n,
-];
-
-let commitYArr = [
-  14660813141304632n,
-  16813475458067060n,
-  13520591078439290n,
-  16854752544074295n,
-  1052500369865187n,
-];
-
-// genP
-let genPXArr = [
-  3698275472572113n,
-  960805623148293n,
-  1361606309141106n,
-  2269370551941167n,
-  95069322382348n,
-];
-
-let genPYArr = [
-  90476339017378n,
-  3910324583965771n,
-  966802187916966n,
-  1105471236702902n,
-  117776083589745n,
-];
-
-// let kArr = [17187201580510244500n, 17315889039600401204n, 16388465764006301260n,
-//     11978092259031919847n];
-
-// Reset Change
-let ephemeralOutputBlindArg =
-  0xab8b1b80a73864094b435de7ee3a1f52ffea6957fb4bdc2d7b3b9f22eb2a5e35n;
-
-let commitX = Fn.create(arrToPoint(commitXArr));
-let commitY = Fp.create(arrToPoint(commitYArr));
-let commitPoint = new schnorr.Point(commitX, commitY, Fp.ONE);
-commitPoint.assertValidity();
-
-let genPX = Fn.create(arrToPoint(genPXArr));
-let genPY = Fp.create(arrToPoint(genPYArr));
-let genP = new schnorr.Point(genPX, genPY, Fp.ONE);
-genP.assertValidity();
-
-let serializedPointArg = commitPoint.toBytes(true);
-try {
-  Fp.sqrt(commitPoint.y);
-  serializedPointArg[0] = 0;
-} catch (e) {
-  serializedPointArg[0] = 1;
-}
-
-let serializedGenPArg = genP.toBytes(true);
-
-//re-assess sqrt
-try {
-  Fp.sqrt(genP.y);
-  serializedGenPArg[0] = 0;
-} catch (e) {
-  serializedGenPArg[0] = 1;
-}
-
-//Reset
-// the value we use is 'value - 1'
-let valueBigIntArg: bigint = BigInt(0x0000000005f5e0ff); //bytesToNumberBE(value);
-
-// Reset
-// This is the scriptpubkey of output
-let extraCommitBuffer = Buffer.from(
-  "0014fd27b2a4f9c9ea6c6a1bafdd1a3d1615d3fbd47d",
-  "hex"
-) as Uint8Array;
-
-const assetId =
-  "25b251070e29ca19043cf33ccd7324e2ddab03ecc4ae0b5e77c4fc0e5cf6c95a";
-const assetBlind =
-  "0a4fc39109a3899d425eed8911f158c665f9e7bec05f20af760bde0fe776a381";
-
-// let nonce2 = 0x0n;
-// let serializedPoint2 = 0;
-// let serializedGenP2 = 0;
-
-// let decryptionKeys = genrand(
-//     nonce2,
-//     serializedPoint2,
-//     serializedGenP2,
-//     new Uint8Array(Array(3328).fill(0)),
-//   );
-
-// generateRangeProof.bind(this)(
-//   serializedPointArg,
-//   serializedGenPArg,
-//   ephemeralOutputBlindArg,
-//   nonceArg,
-//   valueBigIntArg,
-//   extraCommitBuffer,
-//   assetId,
-//   assetBlind
-// );
+export { arrToPoint };

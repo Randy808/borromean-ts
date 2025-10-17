@@ -1,8 +1,8 @@
 import * as liquid from "liquidjs-lib";
-import { Fn, Fp, G } from "./utils";
-import { secp256k1 } from "@noble/curves/secp256k1";
+import { Fn, Fp, G, lift_x } from "./utils";
+import { schnorr, secp256k1 } from "@noble/curves/secp256k1";
 import { sha256 } from "@noble/hashes/sha2";
-import { generateRangeProof, genrand, getQuadness } from "./play";
+import { arrToPoint, generateRangeProof, genrand, getQuadness } from "./play";
 import { txhex1, txhex2 } from "./txhex";
 import { txhex3 } from "./txhex3";
 import { txhex4 } from "./txhex4";
@@ -71,7 +71,29 @@ convertParityByteToQuadness(serializedGenP);
 // serializedGenP[0] = 0;
 
 
-let genP = G.multiply(Fn.fromBytes(serializedGenP.subarray(1)));
+let genP = lift_x(Fn.fromBytes(serializedGenP.subarray(1)));
+
+// genP
+let genPXArr = [
+  3698275472572113n,
+  960805623148293n,
+  1361606309141106n,
+  2269370551941167n,
+  95069322382348n,
+];
+
+let genPYArr = [
+  90476339017378n,
+  3910324583965771n,
+  966802187916966n,
+  1105471236702902n,
+  117776083589745n,
+];
+
+let genPX = Fn.create(arrToPoint(genPXArr));
+let genPY = Fp.create(arrToPoint(genPYArr));
+let genP2 = new schnorr.Point(genPX, genPY, Fp.ONE);
+
 
 if(getQuadness(genP) != serializedGenP[0]) {
   genP = genP.negate()
@@ -220,6 +242,7 @@ let { k, es, sec } = generateRangeProof2(
   assetIdHex,
   assetBlind,
   sharedRootMessageHash,
+  genP
 );
 
 /*
@@ -263,6 +286,7 @@ let {finalProof: rangeProof} = generateRangeProof(
   extraCommitBuffer,
   assetIdHex,
   assetBlind,
+  genP
 );
 
 console.log();
