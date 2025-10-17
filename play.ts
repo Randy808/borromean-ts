@@ -345,7 +345,7 @@ export function generateRangeProof(
     sec,
     secidx,
     NUM_RINGS,
-    messageHashForSignature
+    messageHashForSignature,
   );
 
   console.log();

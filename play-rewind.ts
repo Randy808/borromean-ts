@@ -7,7 +7,7 @@ import crypto from "crypto";
 // Reset change
 import getMessage from "./message";
 import { secp256k1_scalar_add } from "./scalar_add";
-import { secp256k1_borromean_sign } from ".";
+import { secp256k1_borromean_sign, secp256k1_borromean_sign2 } from ".";
 import { WeierstrassPoint } from "@noble/curves/abstract/weierstrass";
 import { CurvePoint } from "@noble/curves/abstract/curve";
 
@@ -173,7 +173,8 @@ export function generateRangeProof2(
   valueB: bigint,
   extraCommit: Uint8Array,
   assetId: string,
-  assetBlind: string
+  assetBlind: string,
+  sharedRootMessageHash: Uint8Array
 ) {
   let pubs: CurvePoint<any, any>[][] = [];
 
@@ -347,7 +348,7 @@ export function generateRangeProof2(
   // y 9374c7456160001b94d77e5ce908000434cc1ef90fb7000a512852dd189200105335b77fdfe5
 
   console.log("sec: " + Buffer.from(sec[LAST_RING_INDEX]).toString("hex"));
-  let {sharedRootMessageHash: e0, es} = secp256k1_borromean_sign(
+  let {sharedRootMessageHash: e0, es} = secp256k1_borromean_sign2(
     sigs,
     pubs,
     k,
@@ -355,7 +356,7 @@ export function generateRangeProof2(
     secidx,
     NUM_RINGS,
     messageHashForSignature,
-    true
+    sharedRootMessageHash
   );
 
   console.log();

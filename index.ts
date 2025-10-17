@@ -27,7 +27,6 @@ import { CurvePoint } from "@noble/curves/abstract/curve";
 //   .map(() =>
 //     generatePublicKeysForRing(RING_SIZE, signerIndex, signerPublicKey)
 //   );
-let es: any[] = [];
 
 function getArrayWithRandomByteValues(size: number): Uint8Array[] {
   return Array(size)
@@ -85,6 +84,7 @@ export function secp256k1_borromean_sign(
   m: any,
   skipSig: boolean = false
 ) {
+  let es: any[] = [];
   const lastRingNonceCollection: Uint8Array[] = [];
 
   for (let ringIndex = 0; ringIndex < nrings; ringIndex++) {
@@ -170,10 +170,10 @@ export function secp256k1_borromean_sign(
     // Overwrite fake signature in the signer index with a real signature from the signer
     // Fn for private key
 
-    if (!skipSig) {
-      if (ringIndex === 25 || ringIndex === 1) {
+    if (ringIndex === 25 || ringIndex === 1) {
         debugger;
       }
+    if (!skipSig) {
 
       let signerSignature =
         Fp.fromBytes(k[ringIndex]) -
@@ -184,5 +184,75 @@ export function secp256k1_borromean_sign(
   }
 
   return { sharedRootMessageHash, es };
+}
+
+export function secp256k1_borromean_sign2(
+  s: Uint8Array[][],
+  pubs: CurvePoint<any, any>[][],
+  k: Uint8Array[],
+  sec: Uint8Array[],
+  secidx: number[],
+  nrings: number,
+  m: any,
+  sharedRootMessageHash: Uint8Array
+) {
+  let es: any[] = [];
+
+  for (let ringIndex = 0; ringIndex < nrings; ringIndex++) {
+    let signerIndex = secidx[ringIndex];
+
+    let e_i = Fn.fromBytes(
+      sha256(
+        concatBytes(
+          sharedRootMessageHash,
+          m,
+          numberToBytesBE(ringIndex, 4),
+          numberToBytesBE(0, 4)
+        )
+      )
+    );
+
+    console.log("\n\n\n");
+    // Fill in signatures from 0 to signer's index
+    for (let pubkeyIndex = 0; pubkeyIndex < signerIndex; pubkeyIndex++) {
+      let pubkeys = pubs[ringIndex];
+      let { noncePoint } = generatePublicKeySignature(
+        pubkeys[pubkeyIndex],
+        e_i,
+        s[ringIndex][pubkeyIndex]
+      );
+
+      // The message hash preimage format differs from the paper here,
+      // and instead follows the secp256k1-zkp library implementation
+      e_i = Fn.fromBytes(
+        sha256(
+          concatBytes(
+            noncePoint.toBytes(),
+            m,
+            numberToBytesBE(ringIndex, 4),
+            numberToBytesBE(pubkeyIndex + 1, 4)
+          )
+        )
+      );
+    }
+
+    // console.log(e_i);
+    es.push(e_i);
+
+    /* sig/sec[ringIndex]
+    s = k - e*sec
+   (s - k)/-e = sec
+   (k - s)/e = sec
+    */
+
+    // Overwrite fake signature in the signer index with a real signature from the signer
+    // Fn for private key
+
+    // if (ringIndex === 25 || ringIndex === 1) {
+    //     debugger;
+    //   }
+  }
+
+  return { sharedRootMessageHash: Fn.fromBytes(sharedRootMessageHash), es };
 }
 console.log();
