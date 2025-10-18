@@ -35,15 +35,13 @@ function decryptByteValues(
 }
 
 //TODO: Take in an spk and a tx, then returns indexes of outputs on the tx that match
-function getOutputIndexes() {
-  return [1];
-}
+// function getOutputIndexes() {
+//   return [1];
+// }
 
-function main() {
-  let t = liquid.Transaction.fromHex(txhex6);
-
+function main(nonce: bigint, t: liquid.Transaction, outputIndex: number) {
   //reset
-  const index = getOutputIndexes();
+  const index = outputIndex;
 
   function convertParityByteToQuadness(bytes: Uint8Array) {
     if (bytes.length === 0) {
@@ -52,19 +50,6 @@ function main() {
 
     return (bytes[0] %= 2);
   }
-
-  let blindingKey =
-    0x16d0a5cf8a1d8e9c242345a8f036fcc91cb231c043296a845e774ca4dd2bb2ecn;
-
-  let nonceCommitment = t.outs[index].nonce.toString("hex");
-
-  const ecdhNoncePreimage = sha256(
-    secp256k1.Point.fromHex(nonceCommitment).multiply(blindingKey).toBytes()
-  );
-
-  let nonce = BigInt(
-    "0x" + Buffer.from(sha256(ecdhNoncePreimage)).toString("hex")
-  );
 
   let serializedPoint = copyBytes(t.outs[index].value);
   convertParityByteToQuadness(serializedPoint);
@@ -172,4 +157,24 @@ function main() {
   return t;
 }
 
-main()
+function getNonce(
+  nonceCommitmentHex: string,
+  blindingKey: bigint
+): bigint {
+  const ecdhNoncePreimage = sha256(
+    secp256k1.Point.fromHex(nonceCommitmentHex)
+      .multiply(Fn.create(blindingKey))
+      .toBytes()
+  );
+
+  return BigInt("0x" + Buffer.from(sha256(ecdhNoncePreimage)).toString("hex"));
+}
+
+// let t = liquid.Transaction.fromHex(txhex6);
+// let index = 1;
+// let blindingKey =
+//   0x16d0a5cf8a1d8e9c242345a8f036fcc91cb231c043296a845e774ca4dd2bb2ecn;
+// let nonce = getNonce(t, 1, t.outs[index].nonce.toString("hex"), blindingKey);
+// main(nonce, t, 1);
+
+export { main as modifyRangeProof, getNonce };

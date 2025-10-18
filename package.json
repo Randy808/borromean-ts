@@ -11,6 +11,8 @@
   "dependencies": {
     "@noble/curves": "^1.9.7",
     "@noble/hashes": "^1.8.0",
-    "liquidjs-lib": "^6.0.2-liquid.23"
+    "@vulpemventures/secp256k1-zkp": "^3.2.1",
+    "liquidjs-lib": "^6.0.2-liquid.37",
+    "tiny-secp256k1": "^2.2.4"
   }
 }
