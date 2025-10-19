@@ -29,7 +29,7 @@ function decryptByteValues(
 
   let decryptedByteValuesBuffer = Buffer.from(decryptedByteValues);
 
-  console.log("DECRYPTED", decryptedByteValuesBuffer.toString("hex"));
+  console.log("\n\nDECRYPTED\n\n", decryptedByteValuesBuffer.toString("hex"));
 
   return { decryptedByteValues };
 }
@@ -57,6 +57,8 @@ function main(nonce: bigint, t: liquid.Transaction, outputIndex: number) {
   let serializedGenP = copyBytes(t.outs[index].asset);
   convertParityByteToQuadness(serializedGenP);
 
+  // This occasionally fails
+  // TODO: Fix this
   let genP = lift_x(Fn.fromBytes(serializedGenP.subarray(1)));
   if (getQuadness(genP) != serializedGenP[0]) {
     genP = genP.negate();
@@ -157,6 +159,45 @@ function main(nonce: bigint, t: liquid.Transaction, outputIndex: number) {
   return t;
 }
 
+function getDecryptedRingSignatureRangeProof(nonce: bigint, t: liquid.Transaction, outputIndex: number) {
+  //reset
+  const index = outputIndex;
+
+  function convertParityByteToQuadness(bytes: Uint8Array) {
+    if (bytes.length === 0) {
+      throw new Error("Bytes cannot be zero-length");
+    }
+
+    return (bytes[0] %= 2);
+  }
+
+  let serializedPoint = copyBytes(t.outs[index].value);
+  convertParityByteToQuadness(serializedPoint);
+
+  let serializedGenP = copyBytes(t.outs[index].asset);
+  convertParityByteToQuadness(serializedGenP);
+
+  let genP = lift_x(Fn.fromBytes(serializedGenP.subarray(1)));
+  if (getQuadness(genP) != serializedGenP[0]) {
+    genP = genP.negate();
+  }
+
+  let decryptionKeys: Uint8Array[] = genrand(
+    nonce,
+    serializedPoint,
+    serializedGenP,
+    new Uint8Array(Array(3328).fill(0))
+  );
+
+  let signatures = Buffer.from(
+    t.outs[index].rangeProof!.subarray(846).toString("hex"),
+    "hex"
+  );
+
+  let { decryptedByteValues } = decryptByteValues(signatures, decryptionKeys);
+  return Buffer.from(decryptedByteValues);
+}
+
 function getNonce(
   nonceCommitmentHex: string,
   blindingKey: bigint
@@ -177,4 +218,4 @@ function getNonce(
 // let nonce = getNonce(t, 1, t.outs[index].nonce.toString("hex"), blindingKey);
 // main(nonce, t, 1);
 
-export { main as modifyRangeProof, getNonce };
+export { main as modifyRangeProof, getNonce, getDecryptedRingSignatureRangeProof };

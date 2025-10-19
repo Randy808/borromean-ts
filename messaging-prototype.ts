@@ -23,7 +23,11 @@ import * as ecc from "tiny-secp256k1";
 import * as liquidjs from "liquidjs-lib";
 import { Psbt } from "liquidjs-lib/src/psbt";
 import { address, payments, networks } from "liquidjs-lib";
-import { getNonce, modifyRangeProof } from "./modify-tx-with-rangeproof";
+import {
+  getDecryptedRingSignatureRangeProof,
+  getNonce,
+  modifyRangeProof,
+} from "./modify-tx-with-rangeproof";
 
 // Initialize ECPair with tiny-secp256k1
 const ECPair = ECPairFactory(ecc);
@@ -128,8 +132,8 @@ function createBlindedTransaction(
   });
 
   psbt.addInput({
-    hash: "67650877ff047404c6a1aa2b82efdc0376f988aaaa2666bd1344123f46ffa2e4",
-    index: 1,
+    hash: "61160cca8baf0ccfbfbc043fa829e0f69b04a6069aa7ce3483095e3264a9d986",
+    index: 0,
     witnessUtxo: {
       asset: assetBuffer,
       script: payment.output!,
@@ -207,7 +211,7 @@ function createBlindedTransaction(
 async function blindOutputs(
   psbt: Psbt,
   blindingPubkey: Buffer,
-  blindingKeyPairs: ECPairInterface[]
+  // blindingKeyPairs: ECPairInterface[]
 ): Promise<Psbt> {
   // const blindingPrivkeys = [
   //     Buffer.from(
@@ -221,13 +225,14 @@ async function blindOutputs(
 
   // Blind the outputs using the blinding arguments
 
-  const keyPair = blindingKeyPairs[0];
+  // const keyPair = blindingKeyPairs[0];
 
   let recipientBlindingPrivateKey = Buffer.from(
     "fff68d254e89c7aeed25b02778e31778641802d426e256dbd703f2dfd932a45a",
     "hex"
   );
 
+  // TODO: Use keypair instead of blindingPubkey
   const blinded = await psbt.blindOutputsByIndex(
     Psbt.ECCKeysGenerator(ecc),
     // (o: any) => {
@@ -308,7 +313,7 @@ void (async function main() {
   const amount = 1000; // sats
 
   try {
-    // Step 4: Get blinding data from address
+    // // Step 4: Get blinding data from address
     const blindingData = getBlindingDataFromAddress(confidentialAddress);
     console.log("✓ Blinding data extracted from address");
     console.log("Blinding data", blindingData.blindingPubKey.toString("hex"));
@@ -325,7 +330,7 @@ void (async function main() {
     psbt = await blindOutputs(
       psbt,
       blindingData.blindingPubKey,
-      blindingKeypairs
+      // blindingKeypairs
     );
 
     // Step 6: Get custom message from user
@@ -334,26 +339,44 @@ void (async function main() {
     let recipientBlindingPrivateKey =
       0xfff68d254e89c7aeed25b02778e31778641802d426e256dbd703f2dfd932a45an;
 
-    let nonce = getNonce(
-      blindingData.blindingPubKey.toString("hex"),
-      BigInt("0x" + blindingKeypairs[0].privateKey?.toString("hex"))
-    );
+    // let nonce = getNonce(
+    //   blindingData.blindingPubKey.toString("hex"),
+    //   BigInt("0x" + blindingKeypairs[0].privateKey?.toString("hex"))
+    // );
+
+    // //565e5ed7937871a52fab695ccb51f2aa17fd1039bab471a5d136d3be53e728e5
 
     const OUTPUT_INDEX = 0;
 
-    // Step 7: Modify range proof to contain message
+    // // Step 7: Modify range proof to contain message
     let t = psbt
       .clone()
       .signInput(0, keyPair)
       .finalizeAllInputs()
       .extractTransaction();
 
-    t = modifyRangeProof(nonce, t, OUTPUT_INDEX);
+   
 
-    psbt.signInput(0, keyPair);
-    psbt.validateSignaturesOfInput(0, Psbt.ECDSASigValidator(ecc));
-    psbt.txOutputs[OUTPUT_INDEX].rangeProof = t.outs[OUTPUT_INDEX].rangeProof;
-    psbt.finalizeAllInputs();
+     let nonceCommitment = t.outs[OUTPUT_INDEX].nonce.toString("hex");
+    let verificationNonce = getNonce(
+      nonceCommitment,
+      recipientBlindingPrivateKey
+    );
+    
+    t = modifyRangeProof(verificationNonce, t, OUTPUT_INDEX);
+
+    // let t2 = liquidjs.Transaction.fromHex(t.toHex())
+    
+    // console.log("\n\nT2 START\n\n\n")
+    // modifyRangeProof(verificationNonce, t2, OUTPUT_INDEX);
+    // console.log("\n\n\nT2 END\n\n")
+
+    // psbt.signInput(0, keyPair);
+    // psbt.validateSignaturesOfInput(0, Psbt.ECDSASigValidator(ecc));
+
+    //THIS DOESNT WORK. txOutputs IS OVERRIDDEN. USE TXHEX2.
+    // psbt.txOutputs[OUTPUT_INDEX].rangeProof = t.outs[OUTPUT_INDEX].rangeProof;
+    // psbt.finalizeAllInputs();
 
     console.log("\n=== Transaction Summary ===");
     // console.log(`Transaction ID: ${tx.getId()}`);
@@ -362,7 +385,27 @@ void (async function main() {
     // console.log(`Message: "${message}"`);
     console.log("\n✓ Transaction ready to broadcast");
 
-    console.log(`TX:\n\n\n${psbt.extractTransaction().toHex()}`);
+    console.log(`TX:\n\n\n${t.toHex()}`);
+
+    let txHexResponse = await fetch(
+      "http://localhost:30001/tx/195e705e80beeb724308fe4fbbf5ef3ce1aed02af65ad81dfbadc82290273567/hex"
+    );
+    let txHex = await txHexResponse.text();
+    let txFinal = liquidjs.Transaction.fromHex(txHex);
+
+    let nonceCommitment2 = txFinal.outs[OUTPUT_INDEX].nonce.toString("hex");
+    let verificationNonce2 = getNonce(
+      nonceCommitment2,
+      recipientBlindingPrivateKey
+    );
+
+    let decrypted = getDecryptedRingSignatureRangeProof(
+      verificationNonce2,
+      txFinal,
+      OUTPUT_INDEX
+    );
+    let message = decrypted.subarray(64, 64 + 32);
+    console.log("\n\nMESSAGE:\n\n", message.toString("ascii"));
 
     // To broadcast: use Liquid node RPC or API
     // const txHex = tx.toHex();
@@ -375,3 +418,13 @@ void (async function main() {
 })();
 
 //Reference txid: 565e5ed7937871a52fab695ccb51f2aa17fd1039bab471a5d136d3be53e728e5
+
+/*
+To test:
+- Call e sendtoaddress <address printed above>
+- Get txid and identify our output
+- Adapt the tx in addInput call to use correct txid and index
+- Run messaging-prototype.ts
+- Get the tx hex and broadcast it
+
+*/

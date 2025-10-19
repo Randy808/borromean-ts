@@ -110,7 +110,6 @@ export function secp256k1_borromean_sign(
   let concatenatedNonces = concatBytes();
   for (let i = 0; i < nrings; i++) {
     let lastRingNonce = lastRingNonceCollection[i];
-    // console.log(Buffer.from(lastRingNonce).toString("hex"));
     concatenatedNonces = concatBytes(concatenatedNonces, lastRingNonce);
   }
 
@@ -134,7 +133,6 @@ export function secp256k1_borromean_sign(
       )
     );
 
-    console.log("\n\n\n");
     // Fill in signatures from 0 to signer's index
     for (let pubkeyIndex = 0; pubkeyIndex < signerIndex; pubkeyIndex++) {
       let pubkeys = pubs[ringIndex];
@@ -158,7 +156,6 @@ export function secp256k1_borromean_sign(
       );
     }
 
-    // console.log(e_i);
     es.push(e_i);
 
     /* sig/sec[ringIndex]
@@ -179,7 +176,6 @@ export function secp256k1_borromean_sign(
         Fp.fromBytes(k[ringIndex]) -
         Fp.create(e_i) * Fn.fromBytes(sec[ringIndex]);
       s[ringIndex][signerIndex] = toBytes(Fn.create(signerSignature));
-      console.log(Buffer.from(s[ringIndex][signerIndex]).toString("hex"));
     }
   }
 
@@ -212,7 +208,6 @@ export function secp256k1_borromean_sign2(
       )
     );
 
-    console.log("\n\n\n");
     // Fill in signatures from 0 to signer's index
     for (let pubkeyIndex = 0; pubkeyIndex < signerIndex; pubkeyIndex++) {
       let pubkeys = pubs[ringIndex];
@@ -236,7 +231,6 @@ export function secp256k1_borromean_sign2(
       );
     }
 
-    // console.log(e_i);
     es.push(e_i);
 
     /* sig/sec[ringIndex]

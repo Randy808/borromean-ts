@@ -277,6 +277,7 @@ export function generateRangeProof2(
   //RANDY_NEW
   for (let i = 0; i < NUM_RINGS; i++) {
     // secp256k1_pedersen_ecmult(ecmult_gen_ctx, &pubs[npub], &sec[i], ((uint64_t)secidx[i] * scale) << (i*2), genp);
+    //TODO: This is buggy. Fix it: 'Field.fromBytes: expected 32 bytes, got 31'
     let bG = G.multiply(Fn.fromBytes(sec[i]));
     // let bG2 = lift_x(Fn.fromBytes(sec[i])); // Makes a new point L
 
@@ -348,7 +349,6 @@ export function generateRangeProof2(
   // x f05833effa5f745e5999d84494fd6812474fc0872f00a0765b9149d6448f92d105335b77fdfe5
   // y 9374c7456160001b94d77e5ce908000434cc1ef90fb7000a512852dd189200105335b77fdfe5
 
-  console.log("sec: " + Buffer.from(sec[LAST_RING_INDEX]).toString("hex"));
   let {sharedRootMessageHash: e0, es} = secp256k1_borromean_sign2(
     sigs,
     pubs,
@@ -381,7 +381,6 @@ export function generateRangeProof2(
     //846
     sigBuffer // 3328
   );
-  console.log("\n\nProof:\n\n", Buffer.from(finalProof).toString("hex"));
 
   return {finalProof, k, es, sec};
 }
