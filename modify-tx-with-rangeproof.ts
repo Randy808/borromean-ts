@@ -27,10 +27,6 @@ function decryptByteValues(
     decryptedByteValues.push(signatures[i] ^ decryptionKeys[row][index]);
   }
 
-  let decryptedByteValuesBuffer = Buffer.from(decryptedByteValues);
-
-  console.log("\n\nDECRYPTED\n\n", decryptedByteValuesBuffer.toString("hex"));
-
   return { decryptedByteValues };
 }
 
@@ -87,6 +83,7 @@ function main(nonce: bigint, t: liquid.Transaction, outputIndex: number) {
   );
 
   let { decryptedByteValues } = decryptByteValues(signatures, decryptionKeys);
+  console.log("\n\nDECRYPTED\n\n", Buffer.from(decryptedByteValues).toString("hex"));
 
   let valueBigIntArg: bigint = BigInt(
     "0x" +
