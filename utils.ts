@@ -179,3 +179,12 @@ export function generatePublicKeysForRing(
 
   return pubkeys;
 }
+
+export function getSecIdx(valueBigIntArg: bigint) {
+  let secidx: any[] = [];
+  for (let i = 0; i < 26; i++) {
+    secidx[i] = Number(valueBigIntArg >> BigInt(i * 2)) & 3;
+  }
+
+  return secidx;
+}
