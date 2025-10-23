@@ -180,6 +180,8 @@ export function generatePublicKeysForRing(
   return pubkeys;
 }
 
+// Think of this as splitting the value into 2 bit chunks
+// and putting each chunk in a different index of secidx
 export function getSecIdx(valueBigIntArg: bigint) {
   let secidx: any[] = [];
   for (let i = 0; i < 26; i++) {

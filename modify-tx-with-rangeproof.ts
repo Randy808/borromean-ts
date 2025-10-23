@@ -2,7 +2,7 @@ import * as liquid from "liquidjs-lib";
 import { Fn, Fp, G, lift_x } from "./utils";
 import { schnorr, secp256k1 } from "@noble/curves/secp256k1";
 import { sha256 } from "@noble/hashes/sha2";
-import { arrToPoint, generateRangeProof, genrand, getQuadness } from "./play";
+import { generateRangeProof, genrand, getQuadness } from "./play";
 import { txhex1, txhex2 } from "./txhex";
 import { txhex3 } from "./txhex3";
 import { txhex4 } from "./txhex4";

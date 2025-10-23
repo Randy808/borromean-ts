@@ -1,87 +1,29 @@
 import { schnorr, secp256k1 } from "@noble/curves/secp256k1";
 import { bytesToNumberBE, numberToBytesBE } from "@noble/curves/utils";
 import { sha256 } from "@noble/hashes/sha2";
-import { concatBytes, randomBytes, toBytes } from "@noble/hashes/utils";
+import { concatBytes, toBytes } from "@noble/hashes/utils";
 import crypto from "crypto";
-
-// Reset change
-import getMessage from "./message";
-import { secp256k1_scalar_add } from "./scalar_add";
-import { secp256k1_borromean_sign } from ".";
-import { WeierstrassPoint } from "@noble/curves/abstract/weierstrass";
 import { CurvePoint } from "@noble/curves/abstract/curve";
+import getMessage from "./message";
+import { secp256k1_borromean_sign } from ".";
 
-function secp256k1_rfc6979_hmac_sha256_initialize(key: any) {
-  const rng = {
-    v: Buffer.alloc(32, 0x01), // Initialize with 0x01 bytes
-    k: Buffer.alloc(32, 0x00), // Initialize with 0x00 bytes
-    retry: 0,
-  };
+// Constants
+const NUM_RINGS = 26;
+const LAST_RING_INDEX = NUM_RINGS - 1;
+const STANDARD_RING_SIZE = 4;
+const ENCRYPTION_CHUNK_SIZE = 32;
+const HMAC_OUTPUT_SIZE = 32;
 
-  // Helper function for HMAC operations
-  function hmacSha256(k: any, ...data: any) {
-    const hmac = crypto.createHmac("sha256", k);
-    data.forEach((chunk: any) => hmac.update(chunk));
-    return hmac.digest();
-  }
+// Proof header configuration
+const PROOF_HEADER = (() => {
+  const header = new Uint8Array(10);
+  header[0] = 0x60;
+  header[1] = 0x33;
+  header[9] = 0x01;
+  return header;
+})();
 
-  const zero = Buffer.from([0x00]);
-  const one = Buffer.from([0x01]);
-
-  // RFC6979 3.2.d.
-  rng.k = hmacSha256(rng.k, rng.v, zero, key);
-  rng.v = hmacSha256(rng.k, rng.v);
-
-  // RFC6979 3.2.f.
-  rng.k = hmacSha256(rng.k, rng.v, one, key);
-  rng.v = hmacSha256(rng.k, rng.v);
-
-  return rng;
-}
-
-function secp256k1_rfc6979_hmac_sha256_generate(rng: any, outlen: any) {
-  /* RFC6979 3.2.h. */
-  const zero: any = Buffer.from([0x00]);
-
-  if (rng.retry) {
-    // K = HMAC_K(V || 0x00)
-    let hmac = crypto.createHmac("sha256", rng.k);
-    hmac.update(rng.v);
-    hmac.update(zero);
-    rng.k = hmac.digest();
-
-    // V = HMAC_K(V)
-    hmac = crypto.createHmac("sha256", rng.k);
-    hmac.update(rng.v);
-    rng.v = hmac.digest();
-  }
-
-  const out = Buffer.alloc(outlen);
-  let outOffset = 0;
-  let remainingLen = outlen;
-
-  while (remainingLen > 0) {
-    // V = HMAC_K(V)
-    const hmac = crypto.createHmac("sha256", rng.k);
-    hmac.update(rng.v);
-    rng.v = hmac.digest();
-
-    const now = Math.min(remainingLen, 32);
-    rng.v.copy(out, outOffset, 0, now);
-    outOffset += now;
-    remainingLen -= now;
-  }
-
-  rng.retry = 1;
-  return out;
-}
-
-let arrToPoint = (arr: Array<bigint>): bigint => {
-  return arr.reduce((acc: bigint, curr, i: number): bigint => {
-    return acc + (BigInt(curr) << (BigInt(i) * BigInt(52)));
-  }, 0n);
-};
-
+// Re-exports
 export const toBytesFn = secp256k1.Point.Fn.toBytes;
 export const hasEven = (y: bigint) => y % BigInt(2) === BigInt(0);
 export const Fn = secp256k1.Point.Fn;
@@ -89,65 +31,82 @@ export const Fp = secp256k1.Point.Fp;
 export const { lift_x } = schnorr.utils;
 export const G = secp256k1.Point.BASE;
 export const num = bytesToNumberBE;
-let Point = secp256k1.Point;
 
-const NUM_RINGS = 26;
-const LAST_RING_INDEX = NUM_RINGS - 1;
-const STANDRAD_RING_SIZE = 4;
-
-export function genrand(
-  nonce: bigint,
-  commitVal: Uint8Array,
-  serializedGenPS: Uint8Array,
-  message: Uint8Array
-) {
-  let tmp;
-  let decryptionKeys: any[] = [];
-
-  let hmacKey = Buffer.concat([
-    toBytesFn(nonce),
-    commitVal,
-    serializedGenPS,
-    new Uint8Array(proofHeader),
-  ]);
-
-  const rng = secp256k1_rfc6979_hmac_sha256_initialize(hmacKey);
-  let acc = 0n;
-
-  for (let i = 0; i < NUM_RINGS; i++) {
-    if (i != LAST_RING_INDEX) {
-      //secp256k1_rfc6979_hmac_sha256_generate mutates rng
-      secp256k1_rfc6979_hmac_sha256_generate(rng, 32);
-      tmp = secp256k1_rfc6979_hmac_sha256_generate(rng, 32);
-      acc += BigInt("0x" + tmp.toString("hex"));
-      // TODO: Add checks for overflow and 0 and retry when they occur
-    }
-
-    if (tmp === undefined) {
-      throw new Error("tmp should not be undefined");
-    }
-
-    for (let j = 0; j < STANDRAD_RING_SIZE; j++) {
-      tmp = secp256k1_rfc6979_hmac_sha256_generate(rng, 32);
-
-      if (message) {
-        const ENCRYPTION_CHUNK_SIZE = 32;
-        for (let b = 0; b < ENCRYPTION_CHUNK_SIZE; b++) {
-          tmp[b] ^=
-            message[(i * STANDRAD_RING_SIZE + j) * ENCRYPTION_CHUNK_SIZE + b];
-          message[(i * STANDRAD_RING_SIZE + j) * ENCRYPTION_CHUNK_SIZE + b] =
-            tmp[b];
-        }
-      }
-
-      decryptionKeys.push(tmp);
-    }
-  }
-
-  return decryptionKeys;
+// Types
+interface RFC6979RNG {
+  v: Buffer;
+  k: Buffer;
+  retry: number;
 }
 
-export function getQuadness(pubkey: CurvePoint<any, any>) {
+// Helper functions
+function hmacSha256(key: Buffer, ...data: Buffer[]): Buffer {
+  const hmac = crypto.createHmac("sha256", key);
+  data.forEach((chunk) => hmac.update(chunk));
+  return hmac.digest();
+}
+
+function initializeRFC6979HMAC(key: Buffer): RFC6979RNG {
+  const rng: RFC6979RNG = {
+    v: Buffer.alloc(HMAC_OUTPUT_SIZE, 0x01),
+    k: Buffer.alloc(HMAC_OUTPUT_SIZE, 0x00),
+    retry: 0,
+  };
+
+  const zero = Buffer.from([0x00]);
+  const one = Buffer.from([0x01]);
+
+  // RFC6979 3.2.d
+  rng.k = hmacSha256(rng.k, rng.v, zero, key);
+  rng.v = hmacSha256(rng.k, rng.v);
+
+  // RFC6979 3.2.f
+  rng.k = hmacSha256(rng.k, rng.v, one, key);
+  rng.v = hmacSha256(rng.k, rng.v);
+
+  return rng;
+}
+
+function generateRFC6979HMAC(rng: RFC6979RNG, outputLength: number): Buffer {
+  // RFC6979 3.2.h
+  const zero = Buffer.from([0x00]);
+
+  if (rng.retry) {
+    rng.k = hmacSha256(rng.k, rng.v, zero);
+    rng.v = hmacSha256(rng.k, rng.v);
+  }
+
+  const output = Buffer.alloc(outputLength);
+  let offset = 0;
+  let remaining = outputLength;
+
+  while (remaining > 0) {
+    rng.v = hmacSha256(rng.k, rng.v);
+    const bytesToCopy = Math.min(remaining, HMAC_OUTPUT_SIZE);
+    rng.v.copy(output, offset, 0, bytesToCopy);
+    offset += bytesToCopy;
+    remaining -= bytesToCopy;
+  }
+
+  rng.retry = 1;
+  return output;
+}
+
+function xorEncryptMessage(
+  message: Uint8Array,
+  key: Buffer,
+  ringIndex: number,
+  elementIndex: number
+): void {
+  const offset =
+    (ringIndex * STANDARD_RING_SIZE + elementIndex) * ENCRYPTION_CHUNK_SIZE;
+  for (let b = 0; b < ENCRYPTION_CHUNK_SIZE; b++) {
+    key[b] ^= message[offset + b];
+    message[offset + b] = key[b];
+  }
+}
+
+export function getQuadness(pubkey: CurvePoint<any, any>): number {
   try {
     Fp.sqrt(pubkey.y);
     return 0;
@@ -156,13 +115,103 @@ export function getQuadness(pubkey: CurvePoint<any, any>) {
   }
 }
 
-let proofHeader = new Array(10).fill(0).reduce((acc: Buffer, n) => {
-  return Buffer.from([...acc, n]);
-}, Buffer.from([]));
+function createHMACKey(
+  nonce: bigint,
+  commitment: Uint8Array,
+  serializedGenP: Uint8Array
+): Buffer {
+  return Buffer.concat([
+    toBytesFn(nonce),
+    commitment,
+    serializedGenP,
+    PROOF_HEADER,
+  ]);
+}
 
-proofHeader[0] = 0x60;
-proofHeader[1] = 0x33;
-proofHeader[9] = 0x01;
+function generateSecretIndices(value: bigint): number[] {
+  const indices: number[] = [];
+  for (let i = 0; i < NUM_RINGS; i++) {
+    indices[i] = Number(value >> BigInt(i * 2)) & 3;
+  }
+  return indices;
+}
+
+function expandRingPublicKeys(
+  initialPoints: CurvePoint<any, any>[],
+  negativeGenP: CurvePoint<any, any>
+): CurvePoint<any, any>[][] {
+  const expanded: CurvePoint<any, any>[][] = [];
+  let currentNegativeGenP = negativeGenP;
+
+  for (let i = 0; i < NUM_RINGS; i++) {
+    expanded[i] = [initialPoints[i]];
+
+    for (let j = 1; j < STANDARD_RING_SIZE; j++) {
+      expanded[i].push(expanded[i][j - 1].add(currentNegativeGenP));
+    }
+
+    currentNegativeGenP = currentNegativeGenP.multiply(4n);
+  }
+
+  return expanded;
+}
+
+function serializeRingPublicKeys(
+  publicKeys: CurvePoint<any, any>[][]
+): Uint8Array[] {
+  const serialized: Uint8Array[] = [];
+
+  for (let i = 0; i < NUM_RINGS - 1; i++) {
+    const serializedKey = publicKeys[i][0].toBytes();
+    serializedKey[0] = getQuadness(publicKeys[i][0]);
+    serialized.push(serializedKey);
+  }
+
+  return serialized;
+}
+
+function createSignsBuffer(publicKeys: CurvePoint<any, any>[][]): Uint8Array {
+  const bufferSize = Math.ceil(NUM_RINGS / 8);
+  const signs = new Uint8Array(bufferSize);
+
+  for (let i = 0; i < NUM_RINGS - 1; i++) {
+    const byteIndex = Math.floor(i / 8);
+    const bitPosition = i % 8;
+    signs[byteIndex] |= getQuadness(publicKeys[i][0]) << bitPosition;
+  }
+
+  return signs;
+}
+
+export function genrand(
+  nonce: bigint,
+  commitVal: Uint8Array,
+  serializedGenPS: Uint8Array,
+  message: Uint8Array
+): Buffer[] {
+  const hmacKey = createHMACKey(nonce, commitVal, serializedGenPS);
+  const rng = initializeRFC6979HMAC(hmacKey);
+  const decryptionKeys: Buffer[] = [];
+
+  for (let i = 0; i < NUM_RINGS; i++) {
+    if (i !== LAST_RING_INDEX) {
+      generateRFC6979HMAC(rng, HMAC_OUTPUT_SIZE); // Advance RNG
+      generateRFC6979HMAC(rng, HMAC_OUTPUT_SIZE); // Skip secret generation
+    }
+
+    for (let j = 0; j < STANDARD_RING_SIZE; j++) {
+      const key = generateRFC6979HMAC(rng, HMAC_OUTPUT_SIZE);
+
+      if (message) {
+        xorEncryptMessage(message, key, i, j);
+      }
+
+      decryptionKeys.push(key);
+    }
+  }
+
+  return decryptionKeys;
+}
 
 export function generateRangeProof(
   serializedPoint: Uint8Array,
@@ -173,241 +222,145 @@ export function generateRangeProof(
   extraCommit: Uint8Array,
   assetId: string,
   assetBlind: string,
-  genP: any
-) {
-  let pubs: CurvePoint<any, any>[][] = [];
+  genP: CurvePoint<any, any>
+): { finalProof: Uint8Array } {
+  const hmacKey = createHMACKey(nonce, serializedPoint, serializedGenP);
+  const rng = initializeRFC6979HMAC(hmacKey);
 
-  let hmacKey = Buffer.concat([
-    toBytesFn(nonce),
-    serializedPoint,
-    serializedGenP,
-    new Uint8Array(proofHeader),
-  ]);
+  // Generate secret indices from value
+  const secretIndices = generateSecretIndices(valueB);
 
-  const rng = secp256k1_rfc6979_hmac_sha256_initialize(hmacKey);
-
-  let sec: any[] = [];
-
-  let secidx: any[] = [];
-
-  for (let i = 0; i < NUM_RINGS; i++) {
-    secidx[i] = Number(valueB >> BigInt(i * 2)) & 3;
-  }
-
-  let valueHex = Buffer.from(numberToBytesBE(valueB, 8)).toString("hex");
-  let message = getMessage(
+  // Generate message
+  const valueHex = Buffer.from(numberToBytesBE(valueB, 8)).toString("hex");
+  const message = getMessage(
     NUM_RINGS,
-    STANDRAD_RING_SIZE,
+    STANDARD_RING_SIZE,
     assetId,
     assetBlind,
     valueHex,
-    secidx[LAST_RING_INDEX] === STANDRAD_RING_SIZE - 1,
+    secretIndices[LAST_RING_INDEX] === STANDARD_RING_SIZE - 1,
     "hello world"
   );
 
-  let messageCopy = message.slice();
+  // Generate secrets and signatures
+  const secrets: Buffer[] = [];
+  const signatures: Buffer[][] = [];
+  const nonces: Buffer[] = [];
+  let accumulator = 0n;
 
-  let acc = 0n;
-
-  let sigs: Uint8Array[][] = [];
-
-  let tmp;
   for (let i = 0; i < NUM_RINGS; i++) {
-    sigs.push([]);
-    if (i != LAST_RING_INDEX) {
-      //secp256k1_rfc6979_hmac_sha256_generate mutates rng
-      secp256k1_rfc6979_hmac_sha256_generate(rng, 32);
-      tmp = secp256k1_rfc6979_hmac_sha256_generate(rng, 32);
-      sec.push(tmp);
-      // Force into Fp
-      acc += BigInt("0x" + tmp.toString("hex"));
-      // TODO: Add checks for overflow and 0 and retry when they occur
+    signatures[i] = [];
+
+    // Generate secret for this ring
+    if (i !== LAST_RING_INDEX) {
+      generateRFC6979HMAC(rng, HMAC_OUTPUT_SIZE); // Advance RNG
+      const secret = generateRFC6979HMAC(rng, HMAC_OUTPUT_SIZE);
+      secrets.push(secret);
+      accumulator += BigInt("0x" + secret.toString("hex"));
+      // TODO: Add overflow and zero checks with retry logic
     } else {
-      let negativeSum = Fn.create(0n - acc);
-      sec.push(Buffer.from(negativeSum.toString(16), "hex"));
+      const negativeSum = Fn.create(0n - accumulator);
+      secrets.push(Buffer.from(negativeSum.toString(16), "hex"));
     }
 
-    if (tmp === undefined) {
-      throw new Error("tmp should not be undefined");
-    }
-
-    for (let j = 0; j < STANDRAD_RING_SIZE; j++) {
-      tmp = secp256k1_rfc6979_hmac_sha256_generate(rng, 32);
+    // Generate signatures for this ring
+    for (let j = 0; j < STANDARD_RING_SIZE; j++) {
+      const sig = generateRFC6979HMAC(rng, HMAC_OUTPUT_SIZE);
 
       if (message) {
-        const ENCRYPTION_CHUNK_SIZE = 32;
-        for (let b = 0; b < ENCRYPTION_CHUNK_SIZE; b++) {
-          tmp[b] ^=
-            message[(i * STANDRAD_RING_SIZE + j) * ENCRYPTION_CHUNK_SIZE + b];
-          message[(i * STANDRAD_RING_SIZE + j) * ENCRYPTION_CHUNK_SIZE + b] =
-            tmp[b];
-        }
+        xorEncryptMessage(message, sig, i, j);
       }
 
-      sigs[i].push(tmp);
+      signatures[i].push(sig);
     }
   }
 
-  let k: any[] = [];
-
-  let signsBufferSize = Math.ceil(NUM_RINGS / 8);
-  let signs = new Uint8Array(Array(signsBufferSize).fill(0));
-
+  // Extract nonces and zero out signature slots
   for (let i = 0; i < NUM_RINGS; i++) {
-    k.push(sigs[i][secidx[i]]);
-    sigs[i][secidx[i]] = Buffer.from(Array(32).fill(0)) as Uint8Array;
+    nonces.push(signatures[i][secretIndices[i]]);
+    signatures[i][secretIndices[i]] = Buffer.alloc(HMAC_OUTPUT_SIZE);
   }
 
-  let sumOfBlindAndLastPartialBlind =
-    Fn.fromBytes(sec[sec.length - 1]) + ephemeralOutputBlind;
-  sec[sec.length - 1] = Buffer.from(
+  // Adjust last secret with ephemeral blind
+  const sumOfBlindAndLastPartialBlind =
+    Fn.fromBytes(secrets[secrets.length - 1]) + ephemeralOutputBlind;
+  secrets[secrets.length - 1] = Buffer.from(
     Fn.toBytes(Fn.create(sumOfBlindAndLastPartialBlind))
   );
 
-  //RANDY_NEW
+  // Generate initial public keys
+  const initialPublicKeys: CurvePoint<any, any>[] = [];
+
   for (let i = 0; i < NUM_RINGS; i++) {
-    // secp256k1_pedersen_ecmult(ecmult_gen_ctx, &pubs[npub], &sec[i], ((uint64_t)secidx[i] * scale) << (i*2), genp);
-    let bG = G.multiply(Fn.fromBytes(sec[i]));
-    // let bG2 = lift_x(Fn.fromBytes(sec[i])); // Makes a new point L
+    const bG = G.multiply(Fn.fromBytes(secrets[i]));
+    const vValue = BigInt(secretIndices[i]) << (BigInt(i) * 2n);
 
-    let vValue = BigInt(BigInt(secidx[i]) << (BigInt(i) * 2n));
+    const commitmentPoint =
+      vValue === 0n ? bG : bG.add(genP.multiply(Fn.create(vValue)));
 
-    let C: CurvePoint<any, any> | undefined;
-
-    if (vValue === 0n) {
-      C = bG;
-    } else {
-      let vP = genP.multiply(Fn.create(vValue));
-      C = bG.add(vP);
-    }
-
-    pubs[i] = [C!];
-
-    let byteIndex = Math.floor(i / 8);
-    let bitPosition = i % 8;
-    if (i < NUM_RINGS - 1) {
-      signs[byteIndex] |= getQuadness(C!) << bitPosition;
-    }
+    initialPublicKeys.push(commitmentPoint);
   }
 
-  let negativeGenP = genP.negate();
-  //secp256k1_rangeproof_pub_expand
-  for (let i = 0; i < NUM_RINGS; i++) {
-    for (let j = 1; j < STANDRAD_RING_SIZE; j++) {
-      pubs[i].push((pubs[i][j - 1] as any).add(negativeGenP));
-    }
-    negativeGenP = negativeGenP.multiply(4n);
-  }
+  // Expand ring public keys
+  const publicKeys = expandRingPublicKeys(initialPublicKeys, genP.negate());
 
-  console.log();
+  // Serialize ring public keys for message
+  const serializedRingKeys = serializeRingPublicKeys(publicKeys);
 
-  //TODO: Look at that special logic using '-=' when setting prep
-
-  // Revisit why last sig was wrong
-  // was 62bd36f29749b407e2531c0e54de2ee3486b1cae01c6166ca45c845e810d17d9, expected e2bd36f29749b407e2531c0e54de2ee3486b1cae01c6166ca45c845e810d17d9
-  //TODO: Figure out what's wrong here
-  //Reset (doesnt need reset but I'm putting it here to draw attention)
-  // sigs[NUM_RINGS - 1][3] = Buffer.from(0xe2bd36f29749b407e2531c0e54de2ee3486b1cae01c6166ca45c845e810d17d9n.toString(16), "hex") as Uint8Array;
-
-  let ringPubkeysForMessage = pubs.map((ringPubkeys) => {
-    let serializedRingPubkey = ringPubkeys[0].toBytes();
-
-    try {
-      Fp.sqrt(ringPubkeys[0].y);
-      serializedRingPubkey[0] = 0;
-    } catch (e) {
-      serializedRingPubkey[0] = 1;
-    }
-
-    return serializedRingPubkey;
-  });
-
-  ringPubkeysForMessage.pop();
-
-  let messagePreimage = concatBytes(
+  // Create message for signature
+  const messagePreimage = concatBytes(
     serializedPoint,
     serializedGenP,
-    proofHeader as Uint8Array,
-    ...ringPubkeysForMessage,
+    PROOF_HEADER,
+    ...(serializedRingKeys as Uint8Array[]),
     extraCommit
   );
+  const messageHash = sha256(messagePreimage);
 
-  let messageHashForSignature = sha256(messagePreimage);
-
-  //last pub
-  // x f05833effa5f745e5999d84494fd6812474fc0872f00a0765b9149d6448f92d105335b77fdfe5
-  // y 9374c7456160001b94d77e5ce908000434cc1ef90fb7000a512852dd189200105335b77fdfe5
-
-  let { sharedRootMessageHash: e0 } = secp256k1_borromean_sign(
-    sigs,
-    pubs,
-    k,
-    sec,
-    secidx,
+  // Generate Borromean ring signature
+  const { sharedRootMessageHash: e0 } = secp256k1_borromean_sign(
+    signatures as any,
+    publicKeys,
+    nonces,
+    secrets,
+    secretIndices,
     NUM_RINGS,
-    messageHashForSignature
+    messageHash
   );
 
-  console.log();
+  // Create signs buffer
+  const signs = createSignsBuffer(publicKeys);
 
-  let commitmentBuffer = ringPubkeysForMessage.reduce((acc, val) => {
-    return concatBytes(acc, val.subarray(1));
-  }, new Uint8Array());
-
-  let sigBuffer = sigs.reduce((acc: any, sigArray: any) => {
-    let serializedSigArray = sigArray.reduce((acc2: any, val2: any) => {
-      return concatBytes(acc2, val2);
-    }, new Uint8Array());
-    return concatBytes(acc, serializedSigArray);
-  }, new Uint8Array());
-
-  let finalProof = concatBytes(
-    proofHeader as Uint8Array, // 10
-    signs, // 4
-    commitmentBuffer, // 800
-    Fn.toBytes(e0!), //32
-    //846
-    sigBuffer // 3328
+  // Serialize commitments (exclude first byte which is the sign)
+  const commitmentBuffer = serializedRingKeys.reduce(
+    (acc, val) => concatBytes(acc, val.subarray(1)),
+    new Uint8Array()
   );
-  // console.log("\n\nProof:\n\n", Buffer.from(finalProof).toString("hex"));
+
+  // Serialize signatures
+  const signatureBuffer: Uint8Array = signatures.reduce((acc, sigArray) => {
+    const serializedSigs = sigArray.reduce(
+      (acc2, sig) => concatBytes(acc2, sig),
+      new Uint8Array() as Uint8Array
+    );
+    return concatBytes(acc, serializedSigs);
+  }, new Uint8Array() as Uint8Array);
+
+  // Construct final proof
+  const finalProof = concatBytes(
+    PROOF_HEADER, // 10 bytes
+    signs, // 4 bytes
+    commitmentBuffer, // 800 bytes
+    Fn.toBytes(e0!), // 32 bytes
+    signatureBuffer // 3328 bytes
+  );
 
   return { finalProof };
 }
-// Update with data (like secp256k1_rfc6979_hmac_sha256_update)
-/*
-  - add nonce (32 bytes)
-  - add commitment point (conf val) (33 bytes)
-  - add genp (33 bytes)
-  - add var len message
 
-  */
-// hmac.update("jjh");
-
-// Finalize (like secp256k1_rfc6979_hmac_sha256_finalize)
-// return hmac.digest('hex');
-
-/* For proof I need to
-- have existing 
-- add 'signs' of first commit pubkey in each ring
-- add first commit pubkey of each ring (32 bytes since 1 byte for signs)
-- stores e0 in 32 bytes (aka the last msg hash)
-- add each ring sig in a flattened row to buffer
-
-
-message hash needs
-- commit
-- genP
-- proof (right b4 genrand)
-- first commit point of every ring
-- Thats it!
-
-*/
-
-/*
-  1) Take a regtest tx
-  2) parse liquid tx
-  2) Extract the nonce and range proof, blinding key, script?
-  3) Get nonce by multiplying ephemeral key ((nonce_commitment.vchCommitment) with our priv key 
-
-  */
-export { arrToPoint };
+// Legacy export
+export function arrToPoint(arr: Array<bigint>): bigint {
+  return arr.reduce((acc, curr, i) => {
+    return acc + (BigInt(curr) << (BigInt(i) * BigInt(52)));
+  }, 0n);
+}
