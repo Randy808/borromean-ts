@@ -231,17 +231,6 @@ export function generateRangeProof2(
       if (message) {
         const ENCRYPTION_CHUNK_SIZE = 32;
         for (let b = 0; b < ENCRYPTION_CHUNK_SIZE; b++) {
-          if (i == LAST_RING_INDEX && j === 0) {
-            console.log(
-              (
-                tmp[b] ^
-                message[
-                  (i * STANDRAD_RING_SIZE + j) * ENCRYPTION_CHUNK_SIZE + b
-                ]
-              ).toString(16)
-            );
-          }
-
           tmp[b] ^=
             message[(i * STANDRAD_RING_SIZE + j) * ENCRYPTION_CHUNK_SIZE + b];
           message[(i * STANDRAD_RING_SIZE + j) * ENCRYPTION_CHUNK_SIZE + b] =

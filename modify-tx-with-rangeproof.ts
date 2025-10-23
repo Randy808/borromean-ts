@@ -30,13 +30,7 @@ function decryptByteValues(
   return { decryptedByteValues };
 }
 
-//TODO: Take in an spk and a tx, then returns indexes of outputs on the tx that match
-// function getOutputIndexes() {
-//   return [1];
-// }
-
 function main(nonce: bigint, t: liquid.Transaction, outputIndex: number) {
-  //reset
   const index = outputIndex;
 
   function convertParityByteToQuadness(bytes: Uint8Array) {
@@ -83,7 +77,10 @@ function main(nonce: bigint, t: liquid.Transaction, outputIndex: number) {
   );
 
   let { decryptedByteValues } = decryptByteValues(signatures, decryptionKeys);
-  console.log("\n\nDECRYPTED\n\n", Buffer.from(decryptedByteValues).toString("hex"));
+  console.log(
+    "\n\nDECRYPTED\n\n",
+    Buffer.from(decryptedByteValues).toString("hex")
+  );
 
   let valueBigIntArg: bigint = BigInt(
     "0x" +
@@ -128,6 +125,12 @@ function main(nonce: bigint, t: liquid.Transaction, outputIndex: number) {
     lastRing * 4 * 32 + ind * 32 + 32
   );
 
+  /* 
+    s = k - e*sec
+    (s - k)/-e = sec
+    (k - s)/e = sec
+  */
+ 
   let e_i_inverse: bigint = invert(es[es.length - 1], Fn.ORDER);
   let base: bigint = Fn.create(
     Fn.create(Fn.fromBytes(k[lastRing]) - Fn.fromBytes(realSigForLastRing)) *
@@ -146,17 +149,17 @@ function main(nonce: bigint, t: liquid.Transaction, outputIndex: number) {
     assetBlind,
     genP
   );
-
-  console.log();
-
-  // //t.outs[index].rangeProof!.subarray(846)
   t.outs[index].rangeProof! = Buffer.from(rangeProof);
   console.log("\n\nTXHEX2\n\n", t.toHex());
 
   return t;
 }
 
-function getDecryptedRingSignatureRangeProof(nonce: bigint, t: liquid.Transaction, outputIndex: number) {
+function getDecryptedRingSignatureRangeProof(
+  nonce: bigint,
+  t: liquid.Transaction,
+  outputIndex: number
+) {
   //reset
   const index = outputIndex;
 
@@ -195,10 +198,7 @@ function getDecryptedRingSignatureRangeProof(nonce: bigint, t: liquid.Transactio
   return Buffer.from(decryptedByteValues);
 }
 
-function getNonce(
-  nonceCommitmentHex: string,
-  blindingKey: bigint
-): bigint {
+function getNonce(nonceCommitmentHex: string, blindingKey: bigint): bigint {
   const ecdhNoncePreimage = sha256(
     secp256k1.Point.fromHex(nonceCommitmentHex)
       .multiply(Fn.create(blindingKey))
@@ -208,11 +208,8 @@ function getNonce(
   return BigInt("0x" + Buffer.from(sha256(ecdhNoncePreimage)).toString("hex"));
 }
 
-// let t = liquid.Transaction.fromHex(txhex6);
-// let index = 1;
-// let blindingKey =
-//   0x16d0a5cf8a1d8e9c242345a8f036fcc91cb231c043296a845e774ca4dd2bb2ecn;
-// let nonce = getNonce(t, 1, t.outs[index].nonce.toString("hex"), blindingKey);
-// main(nonce, t, 1);
-
-export { main as modifyRangeProof, getNonce, getDecryptedRingSignatureRangeProof };
+export {
+  main as modifyRangeProof,
+  getNonce,
+  getDecryptedRingSignatureRangeProof,
+};

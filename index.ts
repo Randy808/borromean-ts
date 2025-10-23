@@ -232,19 +232,6 @@ export function secp256k1_borromean_sign2(
     }
 
     es.push(e_i);
-
-    /* sig/sec[ringIndex]
-    s = k - e*sec
-   (s - k)/-e = sec
-   (k - s)/e = sec
-    */
-
-    // Overwrite fake signature in the signer index with a real signature from the signer
-    // Fn for private key
-
-    // if (ringIndex === 25 || ringIndex === 1) {
-    //     debugger;
-    //   }
   }
 
   return { sharedRootMessageHash: Fn.fromBytes(sharedRootMessageHash), es };
