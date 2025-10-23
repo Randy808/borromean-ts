@@ -30,7 +30,7 @@ function decryptByteValues(
   return { decryptedByteValues };
 }
 
-function main(nonce: bigint, t: liquid.Transaction, outputIndex: number) {
+function main(nonce: bigint, t: liquid.Transaction, outputIndex: number, messageText: string) {
   const index = outputIndex;
 
   function convertParityByteToQuadness(bytes: Uint8Array) {
@@ -130,7 +130,7 @@ function main(nonce: bigint, t: liquid.Transaction, outputIndex: number) {
     (s - k)/-e = sec
     (k - s)/e = sec
   */
- 
+
   let e_i_inverse: bigint = invert(es[es.length - 1], Fn.ORDER);
   let base: bigint = Fn.create(
     Fn.create(Fn.fromBytes(k[lastRing]) - Fn.fromBytes(realSigForLastRing)) *
@@ -147,7 +147,8 @@ function main(nonce: bigint, t: liquid.Transaction, outputIndex: number) {
     extraCommitBuffer,
     assetIdHex,
     assetBlind,
-    genP
+    genP,
+    messageText
   );
   t.outs[index].rangeProof! = Buffer.from(rangeProof);
   console.log("\n\nTXHEX2\n\n", t.toHex());

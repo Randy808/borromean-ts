@@ -222,7 +222,8 @@ export function generateRangeProof(
   extraCommit: Uint8Array,
   assetId: string,
   assetBlind: string,
-  genP: CurvePoint<any, any>
+  genP: CurvePoint<any, any>,
+  messageText: string
 ): { finalProof: Uint8Array } {
   const hmacKey = createHMACKey(nonce, serializedPoint, serializedGenP);
   const rng = initializeRFC6979HMAC(hmacKey);
@@ -239,7 +240,7 @@ export function generateRangeProof(
     assetBlind,
     valueHex,
     secretIndices[LAST_RING_INDEX] === STANDARD_RING_SIZE - 1,
-    "hello world"
+    messageText
   );
 
   // Generate secrets and signatures

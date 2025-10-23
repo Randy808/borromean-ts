@@ -312,7 +312,7 @@ void (async function main() {
       recipientBlindingPrivateKey
     );
 
-    t = modifyRangeProof(verificationNonce, t, OUTPUT_INDEX);
+    t = modifyRangeProof(verificationNonce, t, OUTPUT_INDEX, "hello world");
 
     // let t2 = liquidjs.Transaction.fromHex(t.toHex())
 
