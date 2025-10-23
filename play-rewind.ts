@@ -6,9 +6,7 @@ import crypto from "crypto";
 
 // Reset change
 import getMessage from "./message";
-import { secp256k1_scalar_add } from "./scalar_add";
-import { secp256k1_borromean_sign, secp256k1_borromean_sign2 } from ".";
-import { WeierstrassPoint } from "@noble/curves/abstract/weierstrass";
+import { secp256k1_borromean_sign2 } from ".";
 import { CurvePoint } from "@noble/curves/abstract/curve";
 
 function secp256k1_rfc6979_hmac_sha256_initialize(key: any) {
@@ -75,12 +73,6 @@ function secp256k1_rfc6979_hmac_sha256_generate(rng: any, outlen: any) {
   rng.retry = 1;
   return out;
 }
-
-let arrToPoint = (arr: Array<bigint>): bigint => {
-  return arr.reduce((acc: bigint, curr, i: number): bigint => {
-    return acc + (BigInt(curr) << (BigInt(i) * BigInt(52)));
-  }, 0n);
-};
 
 export const toBytesFn = secp256k1.Point.Fn.toBytes;
 export const hasEven = (y: bigint) => y % BigInt(2) === BigInt(0);
