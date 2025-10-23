@@ -358,10 +358,3 @@ export function generateRangeProof(
 
   return { finalProof };
 }
-
-// Legacy export
-export function arrToPoint(arr: Array<bigint>): bigint {
-  return arr.reduce((acc, curr, i) => {
-    return acc + (BigInt(curr) << (BigInt(i) * BigInt(52)));
-  }, 0n);
-}
